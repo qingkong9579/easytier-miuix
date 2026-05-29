@@ -184,6 +184,15 @@
     <string name="status_events">Events</string>
     <string name="status_peer_info">Peer Info</string>
     <string name="status_no_peers">No connected peers</string>
+    <string name="peer_virtual_ipv4">Virtual IPv4</string>
+    <string name="peer_hostname">Hostname</string>
+    <string name="peer_protocol">Protocol</string>
+    <string name="peer_latency">Latency</string>
+    <string name="peer_tx">Upload</string>
+    <string name="peer_rx">Download</string>
+    <string name="peer_loss">Packet Loss</string>
+    <string name="peer_version">Version</string>
+    <string name="status_route">Route</string>
     <string name="status_peer_id">Peer ID</string>
     <string name="status_virtual_ip">Virtual IP</string>
     <string name="status_hostname">Hostname</string>
@@ -193,6 +202,7 @@
     <string name="status_nat_type">NAT Type</string>
     <string name="status_show_more">Show More</string>
     <string name="status_show_less">Show Less</string>
+    <string name="status_show_count">Show %d</string>
     <string name="status_nat_unknown">Unknown</string>
     <string name="status_nat_endpoint_independent">EndpointIndependent</string>
     <string name="status_nat_endpoint_dependent">EndpointDependent</string>

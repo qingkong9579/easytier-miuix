@@ -184,6 +184,15 @@
     <string name="status_events">事件</string>
     <string name="status_peer_info">对等节点信息</string>
     <string name="status_no_peers">暂无连接的节点</string>
+    <string name="peer_virtual_ipv4">虚拟 IPv4</string>
+    <string name="peer_hostname">主机名</string>
+    <string name="peer_protocol">协议</string>
+    <string name="peer_latency">延迟</string>
+    <string name="peer_tx">上传</string>
+    <string name="peer_rx">下载</string>
+    <string name="peer_loss">丢包率</string>
+    <string name="peer_version">内核版本</string>
+    <string name="status_route">路由</string>
     <string name="status_peer_id">节点 ID</string>
     <string name="status_virtual_ip">虚拟 IP</string>
     <string name="status_hostname">主机名</string>
@@ -193,6 +202,7 @@
     <string name="status_nat_type">NAT 类型</string>
     <string name="status_show_more">显示更多</string>
     <string name="status_show_less">收起</string>
+    <string name="status_show_count">显示 %d 条</string>
     <string name="status_nat_unknown">未知</string>
     <string name="status_nat_endpoint_independent">端点无关</string>
     <string name="status_nat_endpoint_dependent">端点相关</string>

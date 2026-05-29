@@ -1,6 +1,8 @@
 package top.easytier.miuix.ui.screens.status
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,10 +13,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -27,12 +32,14 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import org.json.JSONObject
 import top.easytier.miuix.R
 import top.easytier.miuix.data.model.PeerRoutePair
 import top.easytier.miuix.ui.components.TrafficChart
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
@@ -110,7 +117,7 @@ fun StatusScreen(
         if (parsedEvents.isNotEmpty()) {
             item {
                 var showAllEvents by remember { mutableStateOf(false) }
-                val displayEvents = if (showAllEvents) parsedEvents else parsedEvents.takeLast(5)
+                val displayEvents = if (showAllEvents) parsedEvents.take(20) else parsedEvents.take(5)
 
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -122,7 +129,7 @@ fun StatusScreen(
                             Text("${stringResource(R.string.status_events)} (${parsedEvents.size})", style = MiuixTheme.textStyles.title2)
                             if (parsedEvents.size > 5) {
                                 TextButton(
-                                    text = if (showAllEvents) stringResource(R.string.status_show_less) else stringResource(R.string.status_show_more),
+                                    text = if (showAllEvents) stringResource(R.string.status_show_count, parsedEvents.size) else stringResource(R.string.status_show_count, 20),
                                     onClick = { showAllEvents = !showAllEvents },
                                 )
                             }
@@ -226,14 +233,19 @@ private fun PeerCard(pair: PeerRoutePair) {
     val peer = pair.peer
     val conn = peer?.conns?.firstOrNull()
     val stats = conn?.stats
+    var expanded by remember { mutableStateOf(false) }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = { expanded = !expanded },
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            // Summary row — always visible
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = route.hostname.ifEmpty { route.ipv4Addr ?: "N/A" },
                         style = MiuixTheme.textStyles.title2,
@@ -259,26 +271,79 @@ private fun PeerCard(pair: PeerRoutePair) {
 
             Spacer(Modifier.height(8.dp))
 
+            // Quick stats row
             Row(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("TX", style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
+                    Text(stringResource(R.string.peer_tx), style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
                     Text(formatBytes(stats?.txBytes ?: 0), style = MiuixTheme.textStyles.body2)
                 }
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("RX", style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
+                    Text(stringResource(R.string.peer_rx), style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
                     Text(formatBytes(stats?.rxBytes ?: 0), style = MiuixTheme.textStyles.body2)
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.status_loss), style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
-                    Text("${(conn?.lossRate ?: 0f) * 100}%", style = MiuixTheme.textStyles.body2)
+                    Text("${"%.1f".format((conn?.lossRate ?: 0f) * 100)}%", style = MiuixTheme.textStyles.body2)
                 }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.status_cost), style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
-                    Text("${route.cost}", style = MiuixTheme.textStyles.body2)
+            }
+
+            // Expanded detail — only fields NOT in summary
+            AnimatedVisibility(visible = expanded) {
+                Column {
+                    Spacer(Modifier.height(10.dp))
+
+                    PeerInfoRow(stringResource(R.string.peer_version), route.version.ifEmpty { "-" })
+
+                    if (route.proxyCidrs.isNotEmpty()) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(stringResource(R.string.status_route), style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
+                        route.proxyCidrs.forEach { cidr ->
+                            Text(cidr, style = MiuixTheme.textStyles.body2)
+                        }
+                    }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun PeerInfoRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = label,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+        )
+        Text(
+            text = value,
+            style = MiuixTheme.textStyles.body2,
+        )
+    }
+}
+
+private fun unescapeJson(s: String): String {
+    var result = s
+    // Handle double-escaped sequences first
+    result = result.replace("\\\\\"", "\"")
+    result = result.replace("\\\\/", "/")
+    result = result.replace("\\\\n", "\n")
+    result = result.replace("\\\\t", "\t")
+    result = result.replace("\\\\r", "\r")
+    result = result.replace("\\\\\\\\", "\\\\")
+    // Single-escaped sequences
+    result = result.replace("\\\"", "\"")
+    result = result.replace("\\/", "/")
+    result = result.replace("\\n", "\n")
+    result = result.replace("\\t", "\t")
+    result = result.replace("\\r", "\r")
+    result = result.replace("\\\\", "\\")
+    return result
 }
 
 private fun formatBytes(bytes: Long): String {
@@ -318,47 +383,115 @@ private fun EventLogItem(event: top.easytier.miuix.data.model.EventInfo) {
         EventSeverity.WARN -> androidx.compose.ui.graphics.Color(0xFFFFA000)
         EventSeverity.INFO -> MiuixTheme.colorScheme.primary
     }
-    val timeStr = if (event.timestamp > 0) {
-        val sdf = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
+    // Parse event type, time, and extra key-value pairs from raw JSON
+    val (eventType, displayTime, extraFields) = remember(event.raw) {
+        try {
+            // Clean the raw string first
+            val cleaned = unescapeJson(event.raw)
+            val obj = JSONObject(cleaned)
+            val metaKeys = setOf("level", "time", "timestamp", "ts", "event")
+            // Event type: if "event" is an object, use its first key name
+            val eventObj = obj.optJSONObject("event")
+            val type = if (eventObj != null) {
+                eventObj.keys().next()
+            } else {
+                // Otherwise first non-meta key in root
+                obj.keys().asSequence().firstOrNull { it !in metaKeys } ?: ""
+            }
+            // Read time
+            val rawTime = unescapeJson(obj.optString("time", obj.optString("timestamp", "")))
+            val shortTime = if (rawTime.length >= 16) rawTime.substring(0, 16) else rawTime
+            // Extract key-value pairs from the event detail object
+            val pairs = mutableListOf<Pair<String, String>>()
+            // If type came from event object, the detail is the value under that key
+            val detailObj = if (eventObj != null && type.isNotEmpty()) {
+                eventObj.optJSONObject(type)
+            } else if (type.isNotEmpty()) {
+                obj.optJSONObject(type)
+            } else null
+            if (detailObj != null) {
+                detailObj.keys().forEach { key ->
+                    val value = unescapeJson(detailObj.optString(key, detailObj.opt(key)?.toString() ?: ""))
+                    if (value.isNotBlank() && value != "null") {
+                        pairs.add(key to value)
+                    }
+                }
+            } else {
+                // No nested object — use all non-meta keys as pairs
+                obj.keys().forEach { key ->
+                    if (key !in metaKeys && key != type && key != "event") {
+                        val value = unescapeJson(obj.optString(key, obj.opt(key)?.toString() ?: ""))
+                        if (value.isNotBlank() && value != "null") {
+                            pairs.add(key to value)
+                        }
+                    }
+                }
+            }
+            Triple(type, shortTime, pairs)
+        } catch (_: Exception) {
+            // If raw is not JSON, treat it as a plain event message
+            Triple("", "", emptyList<Pair<String, String>>())
+        }
+    }
+    var showJson by remember { mutableStateOf(false) }
+    var capturedJson by remember { mutableStateOf("") }
+    var capturedTitle by remember { mutableStateOf("") }
+    val formattedJson = remember(event.raw) {
+        val cleaned = unescapeJson(event.raw)
+        try {
+            JSONObject(cleaned).toString(2)
+        } catch (_: Exception) {
+            cleaned
+        }
+    }
+    val timeStr = if (displayTime.isNotEmpty()) displayTime else if (event.timestamp > 0) {
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm", java.util.Locale.getDefault())
         sdf.format(java.util.Date(event.timestamp))
     } else ""
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {
+                    capturedJson = formattedJson
+                    capturedTitle = eventType
+                    showJson = true
+                },
+            )
             .padding(vertical = 4.dp),
     ) {
+        // Row: dot + level + event_type + time
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
                 modifier = Modifier
-                    .padding(end = 8.dp)
-                    .height(8.dp)
-                    .width(8.dp)
+                    .padding(end = 6.dp)
+                    .height(6.dp)
+                    .width(6.dp)
                     .then(Modifier.drawBehind { drawCircle(severityColor) }),
             )
-            // Level badge
             Card(
-                modifier = Modifier.padding(end = 8.dp),
+                modifier = Modifier.padding(end = 6.dp),
                 onClick = {},
             ) {
                 Text(
                     text = event.level.uppercase(),
                     style = MiuixTheme.textStyles.body2,
                     color = severityColor,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
                 )
             }
-            if (event.peerId != 0L) {
-                Text(
-                    text = "Peer ${event.peerId}",
-                    style = MiuixTheme.textStyles.body2,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    modifier = Modifier.padding(end = 8.dp),
-                )
-            }
+            Text(
+                text = eventType,
+                style = MiuixTheme.textStyles.body2,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+            )
             if (timeStr.isNotEmpty()) {
                 Text(
                     text = timeStr,
@@ -367,11 +500,33 @@ private fun EventLogItem(event: top.easytier.miuix.data.model.EventInfo) {
                 )
             }
         }
-        Text(
-            text = event.message.ifEmpty { event.raw },
-            style = MiuixTheme.textStyles.body2,
-            color = MiuixTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(start = 16.dp),
-        )
+
+    }
+
+    // Popup dialog for formatted JSON — uses captured snapshot
+    if (showJson) {
+        OverlayDialog(
+            title = capturedTitle.ifEmpty { "Event Detail" },
+            show = true,
+            onDismissRequest = { showJson = false },
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 400.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp)
+            ) {
+                Text(
+                    text = capturedJson,
+                    style = MiuixTheme.textStyles.body2,
+                )
+                Spacer(Modifier.height(12.dp))
+                TextButton(
+                    text = stringResource(R.string.ok),
+                    onClick = { showJson = false },
+                )
+            }
+        }
     }
 }

@@ -16,6 +16,7 @@ import androidx.compose.material.icons.rounded.Analytics
 import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -55,6 +56,8 @@ import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
+import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
+import androidx.navigationevent.compose.rememberNavigationEventDispatcherOwner
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 enum class BottomBarDestination(val labelRes: Int, val icon: ImageVector) {
@@ -68,6 +71,19 @@ fun AppNavigation(
     appSettings: AppSettings = AppSettings(),
     onSettingsChange: (AppSettings) -> Unit = {},
     onExitApp: () -> Unit = {},
+) {
+    // Provide NavigationEventDispatcher for miuix OverlayDialog/OverlayDropdown
+    val owner = rememberNavigationEventDispatcherOwner(parent = null)
+    CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides owner) {
+        AppNavigationContent(appSettings, onSettingsChange, onExitApp)
+    }
+}
+
+@Composable
+private fun AppNavigationContent(
+    appSettings: AppSettings,
+    onSettingsChange: (AppSettings) -> Unit,
+    onExitApp: () -> Unit,
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var editingInstanceId by rememberSaveable { mutableStateOf<String?>(null) }
