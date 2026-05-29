@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,8 +30,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import org.json.JSONObject
 import top.easytier.miuix.R
@@ -228,77 +232,134 @@ private fun InfoChip(label: String, value: String) {
 }
 
 @Composable
+private fun latencyColor(latencyUs: Long): Color = when {
+    latencyUs <= 0 -> MiuixTheme.colorScheme.onSurfaceVariantSummary
+    latencyUs < 10_000 -> Color(0xFF4CAF50)
+    latencyUs < 50_000 -> Color(0xFFFFA000)
+    else -> MiuixTheme.colorScheme.error
+}
+
+@Composable
+private fun lossColor(rate: Float): Color = when {
+    rate <= 0f -> MiuixTheme.colorScheme.onSurfaceVariantSummary
+    rate < 0.01f -> Color(0xFF4CAF50)
+    rate < 0.05f -> Color(0xFFFFA000)
+    else -> MiuixTheme.colorScheme.error
+}
+
+@Composable
 private fun PeerCard(pair: PeerRoutePair) {
     val route = pair.route
     val peer = pair.peer
     val conn = peer?.conns?.firstOrNull()
     val stats = conn?.stats
     var expanded by remember { mutableStateOf(false) }
+    val latencyUs = stats?.latencyUs ?: -1
+    val lossRate = conn?.lossRate ?: -1f
+    val dotColor = if (latencyUs > 0) latencyColor(latencyUs) else MiuixTheme.colorScheme.onSurfaceVariantSummary
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         onClick = { expanded = !expanded },
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Summary row — always visible
+            // Summary row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = route.hostname.ifEmpty { route.ipv4Addr ?: "N/A" },
-                        style = MiuixTheme.textStyles.title2,
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    // Connection status dot
+                    Box(
+                        modifier = Modifier
+                            .padding(end = 10.dp)
+                            .height(10.dp)
+                            .width(10.dp)
+                            .then(Modifier.drawBehind { drawCircle(dotColor) }),
                     )
-                    Text(
-                        text = route.ipv4Addr ?: "",
-                        style = MiuixTheme.textStyles.body2,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    )
+                    Column {
+                        Text(
+                            text = route.hostname.ifEmpty { route.ipv4Addr ?: "N/A" },
+                            style = MiuixTheme.textStyles.title2,
+                        )
+                        Text(
+                            text = route.ipv4Addr ?: "",
+                            style = MiuixTheme.textStyles.body2,
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        )
+                    }
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = conn?.tunnel?.tunnelType ?: "-",
+                        text = conn?.tunnel?.tunnelType?.uppercase() ?: "-",
                         style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.primary,
                     )
                     Text(
-                        text = "${stats?.latencyUs?.div(1000) ?: "-"} ms",
+                        text = if (latencyUs > 0) "%.1f ms".format(latencyUs / 1000.0) else "- ms",
                         style = MiuixTheme.textStyles.body2,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        color = if (latencyUs > 0) latencyColor(latencyUs) else MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     )
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
 
-            // Quick stats row
+            // Stats row with color-coded values
             Row(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.peer_tx), style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
+                    Text(stringResource(R.string.peer_tx), style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceVariantSummary, fontSize = 11.sp)
                     Text(formatBytes(stats?.txBytes ?: 0), style = MiuixTheme.textStyles.body2)
                 }
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.peer_rx), style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
+                    Text(stringResource(R.string.peer_rx), style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceVariantSummary, fontSize = 11.sp)
                     Text(formatBytes(stats?.rxBytes ?: 0), style = MiuixTheme.textStyles.body2)
                 }
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.status_loss), style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
-                    Text("${"%.1f".format((conn?.lossRate ?: 0f) * 100)}%", style = MiuixTheme.textStyles.body2)
+                    Text(stringResource(R.string.status_loss), style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceVariantSummary, fontSize = 11.sp)
+                    Text(
+                        text = if (lossRate >= 0f) "%.1f%%".format(lossRate * 100) else "-",
+                        style = MiuixTheme.textStyles.body2,
+                        color = if (lossRate > 0f) lossColor(lossRate) else MiuixTheme.colorScheme.onSurface
+                    )
                 }
             }
 
-            // Expanded detail — only fields NOT in summary
+            // Expanded detail
             AnimatedVisibility(visible = expanded) {
+                val dividerColor = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.1f)
                 Column {
+                    Spacer(Modifier.height(12.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .drawBehind { drawRect(dividerColor) }
+                    )
                     Spacer(Modifier.height(10.dp))
 
                     PeerInfoRow(stringResource(R.string.peer_version), route.version.ifEmpty { "-" })
+                    PeerInfoRow(stringResource(R.string.peer_id_label), peer?.peerId?.toString() ?: "-")
 
                     if (route.proxyCidrs.isNotEmpty()) {
                         Spacer(Modifier.height(6.dp))
-                        Text(stringResource(R.string.status_route), style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
+                        Text(
+                            stringResource(R.string.status_route),
+                            style = MiuixTheme.textStyles.body2,
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                            fontSize = 11.sp,
+                        )
                         route.proxyCidrs.forEach { cidr ->
-                            Text(cidr, style = MiuixTheme.textStyles.body2)
+                            Text(
+                                cidr,
+                                style = MiuixTheme.textStyles.body2,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 12.sp,
+                            )
                         }
                     }
                 }
@@ -380,30 +441,23 @@ private fun EventLogItem(event: top.easytier.miuix.data.model.EventInfo) {
     val severity = detectEventSeverity(event)
     val severityColor = when (severity) {
         EventSeverity.ERROR -> MiuixTheme.colorScheme.error
-        EventSeverity.WARN -> androidx.compose.ui.graphics.Color(0xFFFFA000)
+        EventSeverity.WARN -> Color(0xFFFFA000)
         EventSeverity.INFO -> MiuixTheme.colorScheme.primary
     }
-    // Parse event type, time, and extra key-value pairs from raw JSON
     val (eventType, displayTime, extraFields) = remember(event.raw) {
         try {
-            // Clean the raw string first
             val cleaned = unescapeJson(event.raw)
             val obj = JSONObject(cleaned)
             val metaKeys = setOf("level", "time", "timestamp", "ts", "event")
-            // Event type: if "event" is an object, use its first key name
             val eventObj = obj.optJSONObject("event")
             val type = if (eventObj != null) {
                 eventObj.keys().next()
             } else {
-                // Otherwise first non-meta key in root
                 obj.keys().asSequence().firstOrNull { it !in metaKeys } ?: ""
             }
-            // Read time
             val rawTime = unescapeJson(obj.optString("time", obj.optString("timestamp", "")))
-            val shortTime = if (rawTime.length >= 16) rawTime.substring(0, 16) else rawTime
-            // Extract key-value pairs from the event detail object
+            val shortTime = if (rawTime.length >= 19) rawTime.substring(11, 19) else if (rawTime.length >= 16) rawTime.substring(11, 16) else rawTime
             val pairs = mutableListOf<Pair<String, String>>()
-            // If type came from event object, the detail is the value under that key
             val detailObj = if (eventObj != null && type.isNotEmpty()) {
                 eventObj.optJSONObject(type)
             } else if (type.isNotEmpty()) {
@@ -417,7 +471,6 @@ private fun EventLogItem(event: top.easytier.miuix.data.model.EventInfo) {
                     }
                 }
             } else {
-                // No nested object — use all non-meta keys as pairs
                 obj.keys().forEach { key ->
                     if (key !in metaKeys && key != type && key != "event") {
                         val value = unescapeJson(obj.optString(key, obj.opt(key)?.toString() ?: ""))
@@ -429,7 +482,6 @@ private fun EventLogItem(event: top.easytier.miuix.data.model.EventInfo) {
             }
             Triple(type, shortTime, pairs)
         } catch (_: Exception) {
-            // If raw is not JSON, treat it as a plain event message
             Triple("", "", emptyList<Pair<String, String>>())
         }
     }
@@ -445,9 +497,11 @@ private fun EventLogItem(event: top.easytier.miuix.data.model.EventInfo) {
         }
     }
     val timeStr = if (displayTime.isNotEmpty()) displayTime else if (event.timestamp > 0) {
-        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm", java.util.Locale.getDefault())
+        val sdf = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
         sdf.format(java.util.Date(event.timestamp))
     } else ""
+    // Show first extra field as inline summary
+    val inlineSummary = extraFields.firstOrNull()?.let { "${it.first}: ${it.second}" } ?: ""
 
     Column(
         modifier = Modifier
@@ -461,49 +515,68 @@ private fun EventLogItem(event: top.easytier.miuix.data.model.EventInfo) {
                     showJson = true
                 },
             )
-            .padding(vertical = 4.dp),
+            .padding(vertical = 5.dp),
     ) {
-        // Row: dot + level + event_type + time
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            // Colored dot
             Box(
                 modifier = Modifier
-                    .padding(end = 6.dp)
-                    .height(6.dp)
-                    .width(6.dp)
+                    .padding(end = 8.dp)
+                    .height(8.dp)
+                    .width(8.dp)
                     .then(Modifier.drawBehind { drawCircle(severityColor) }),
             )
-            Card(
-                modifier = Modifier.padding(end = 6.dp),
-                onClick = {},
+            // Level badge
+            Box(
+                modifier = Modifier
+                    .padding(end = 8.dp)
+                    .drawBehind {
+                        drawRoundRect(
+                            color = severityColor.copy(alpha = 0.15f),
+                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f, 4f),
+                        )
+                    }
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
             ) {
                 Text(
                     text = event.level.uppercase(),
-                    style = MiuixTheme.textStyles.body2,
+                    fontSize = 10.sp,
                     color = severityColor,
-                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
                 )
             }
+            // Event type
             Text(
                 text = eventType,
                 style = MiuixTheme.textStyles.body2,
                 modifier = Modifier.weight(1f),
                 maxLines = 1,
             )
+            // Time
             if (timeStr.isNotEmpty()) {
                 Text(
                     text = timeStr,
-                    style = MiuixTheme.textStyles.body2,
+                    fontSize = 11.sp,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    fontFamily = FontFamily.Monospace,
                 )
             }
         }
-
+        // Inline summary line
+        if (inlineSummary.isNotEmpty()) {
+            Text(
+                text = inlineSummary,
+                fontSize = 11.sp,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                maxLines = 1,
+                modifier = Modifier.padding(start = 16.dp),
+            )
+        }
     }
 
-    // Popup dialog for formatted JSON — uses captured snapshot
+    // Popup dialog for formatted JSON
     if (showJson) {
         OverlayDialog(
             title = capturedTitle.ifEmpty { "Event Detail" },
@@ -519,7 +592,7 @@ private fun EventLogItem(event: top.easytier.miuix.data.model.EventInfo) {
             ) {
                 Text(
                     text = capturedJson,
-                    style = MiuixTheme.textStyles.body2,
+                    style = MiuixTheme.textStyles.body2.copy(fontFamily = FontFamily.Monospace),
                 )
                 Spacer(Modifier.height(12.dp))
                 TextButton(

@@ -190,6 +190,7 @@
     <string name="peer_latency">延迟</string>
     <string name="peer_tx">上传</string>
     <string name="peer_rx">下载</string>
+    <string name="peer_id_label">节点 ID</string>
     <string name="peer_loss">丢包率</string>
     <string name="peer_version">内核版本</string>
     <string name="status_route">路由</string>

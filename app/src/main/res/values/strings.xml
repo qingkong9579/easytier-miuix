@@ -190,6 +190,7 @@
     <string name="peer_latency">Latency</string>
     <string name="peer_tx">Upload</string>
     <string name="peer_rx">Download</string>
+    <string name="peer_id_label">Peer ID</string>
     <string name="peer_loss">Packet Loss</string>
     <string name="peer_version">Version</string>
     <string name="status_route">Route</string>
