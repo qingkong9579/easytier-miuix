@@ -54,7 +54,7 @@ fun AboutDialog(onDismiss: () -> Unit) {
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = stringResource(R.string.about_version, "2.6.4"),
+                text = stringResource(R.string.about_version, "1.1.0"),
                 style = MiuixTheme.textStyles.body2,
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             )
