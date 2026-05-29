@@ -599,6 +599,7 @@ class RealNetworkRepository @Inject constructor(
             val instName = config.instanceName.ifEmpty { config.networkName }
             appendLine("instance_name = \"$instName\"")
             appendLine("instance_id = \"${config.instanceId}\"")
+            config.hostname?.let { appendLine("hostname = \"$it\"") }
 
             // DHCP or static IP
             if (config.dhcp) {

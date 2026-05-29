@@ -120,7 +120,7 @@
     <string name="config_advanced_expand">Expand</string>
     <string name="config_advanced_collapse">Collapse</string>
     <string name="config_hostname">Hostname</string>
-    <string name="config_dev_name">Device Name</string>
+    <string name="config_dev_name">TUN Interface Name</string>
     <string name="config_mtu">MTU (leave empty for default)</string>
     <string name="config_latency_first">Latency First</string>
     <string name="config_latency_first_summary">Prioritize latency over bandwidth</string>

@@ -34,6 +34,7 @@ class StatusViewModel @Inject constructor(
 
     private var prevTxSum = 0L
     private var prevRxSum = 0L
+    private var lastRunningId: String? = null
 
     init {
         viewModelScope.launch {
@@ -41,12 +42,25 @@ class StatusViewModel @Inject constructor(
                 val running = instances.firstOrNull { it.running }
                 _currentInstance.value = running
 
-                // Calculate traffic rates
-                val detail = running?.detail ?: return@collect
+                // Reset counters and history when instance changes or stops
+                val runningId = running?.instanceId
+                if (runningId != lastRunningId) {
+                    prevTxSum = 0L
+                    prevRxSum = 0L
+                    _txHistory.value = emptyList()
+                    _rxHistory.value = emptyList()
+                    lastRunningId = runningId
+                }
+
+                val detail = running?.detail ?: run {
+                    _txRate.value = "0 B/s"
+                    _rxRate.value = "0 B/s"
+                    return@collect
+                }
                 val curTxSum = detail.peers.flatMap { it.conns }.sumOf { it.stats?.txBytes ?: 0 }
                 val curRxSum = detail.peers.flatMap { it.conns }.sumOf { it.stats?.rxBytes ?: 0 }
 
-                if (prevTxSum > 0) {
+                if (prevTxSum > 0 && curTxSum >= prevTxSum && curRxSum >= prevRxSum) {
                     _txRate.value = humanFileSize(curTxSum - prevTxSum) + "/s"
                     _rxRate.value = humanFileSize(curRxSum - prevRxSum) + "/s"
                     _txHistory.value = (_txHistory.value + (curTxSum - prevTxSum)).takeLast(60)

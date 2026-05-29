@@ -120,7 +120,7 @@
     <string name="config_advanced_expand">展开</string>
     <string name="config_advanced_collapse">收起</string>
     <string name="config_hostname">主机名</string>
-    <string name="config_dev_name">设备名称</string>
+    <string name="config_dev_name">TUN 接口名称</string>
     <string name="config_mtu">MTU（留空使用默认值）</string>
     <string name="config_latency_first">延迟优先</string>
     <string name="config_latency_first_summary">优先考虑延迟而非带宽</string>
