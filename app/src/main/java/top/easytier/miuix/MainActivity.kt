@@ -103,20 +103,42 @@ fun MainContent(
     val context = androidx.compose.ui.platform.LocalContext.current
     val activity = context as? ComponentActivity
 
-    val code = prefs.getString("language", "") ?: ""
-    val savedLanguage = when (code) {
-        "en" -> AppLanguage.ENGLISH
-        "zh" -> AppLanguage.CHINESE
-        else -> AppLanguage.SYSTEM
+    val savedAppSettings = remember {
+        val code = prefs.getString("language", "") ?: ""
+        AppSettings(
+            language = when (code) {
+                "en" -> AppLanguage.ENGLISH
+                "zh" -> AppLanguage.CHINESE
+                else -> AppLanguage.SYSTEM
+            },
+            enableBlur = prefs.getBoolean("enableBlur", true),
+            enableFloatingBottomBar = prefs.getBoolean("enableFloatingBottomBar", false),
+            enableFloatingBottomBarBlur = prefs.getBoolean("enableFloatingBottomBarBlur", false),
+            colorMode = try {
+                top.easytier.miuix.ui.theme.ColorMode.valueOf(prefs.getString("colorMode", "") ?: "")
+            } catch (_: Exception) {
+                top.easytier.miuix.ui.theme.ColorMode.MONET_SYSTEM
+            },
+            keyColor = prefs.getInt("keyColor", 0),
+        )
     }
-    var appSettings by remember { mutableStateOf(AppSettings(language = savedLanguage)) }
+    var appSettings by remember { mutableStateOf(savedAppSettings) }
 
     AppTheme(appSettings = appSettings) {
         AppNavigation(
             appSettings = appSettings,
             onSettingsChange = { newSettings ->
+                val oldLanguage = appSettings.language
                 appSettings = newSettings
-                if (newSettings.language.code != (prefs.getString("language", "") ?: "")) {
+                prefs.edit()
+                    .putString("language", newSettings.language.code)
+                    .putBoolean("enableBlur", newSettings.enableBlur)
+                    .putBoolean("enableFloatingBottomBar", newSettings.enableFloatingBottomBar)
+                    .putBoolean("enableFloatingBottomBarBlur", newSettings.enableFloatingBottomBarBlur)
+                    .putString("colorMode", newSettings.colorMode.name)
+                    .putInt("keyColor", newSettings.keyColor)
+                    .apply()
+                if (newSettings.language != oldLanguage) {
                     onLanguageChanged(newSettings.language)
                 }
             },
