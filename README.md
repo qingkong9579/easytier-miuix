@@ -32,12 +32,12 @@ EasyTier miuix 是 [EasyTier](https://github.com/EasyTier/EasyTier) 的原生 An
 <tr>
 <td><img src="screenshots/networks.jpg" alt="网络列表" width="280" /></td>
 <td><img src="screenshots/status.jpg" alt="状态监控" width="280" /></td>
-<td><img src="screenshots/about.jpg" alt="事件日志" width="280" /></td>
+<td><img src="screenshots/about.jpg" alt="对等节点信息" width="280" /></td>
 </tr>
 <tr>
 <td align="center">网络列表</td>
 <td align="center">状态监控</td>
-<td align="center">事件日志</td>
+<td align="center">对等节点信息</td>
 </tr>
 </table>
 </div>
