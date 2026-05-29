@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">EasyTier</string>
+
+    <!-- Navigation -->
+    <string name="nav_networks">Networks</string>
+    <string name="nav_status">Status</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Mode -->
+    <string name="mode_normal">Normal</string>
+    <string name="mode_service">Service</string>
+    <string name="mode_remote">Remote</string>
+    <string name="mode_switcher_title">Switch Mode</string>
+    <string name="mode_service_desc">Service mode manages EasyTier as a system service.</string>
+    <string name="mode_remote_rpc">Remote RPC Address</string>
+
+    <!-- Settings -->
+    <string name="settings_language">Language</string>
+    <string name="settings_language_summary">Select app display language</string>
+    <string name="language_system">Follow System</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_summary">Customize theme colors and style</string>
+    <string name="settings_theme_mode_system">System</string>
+    <string name="settings_theme_mode_light">Light</string>
+    <string name="settings_theme_mode_dark">Dark</string>
+    <string name="settings_monet">Dynamic Colors</string>
+    <string name="settings_monet_summary">Use Material You dynamic colors</string>
+    <string name="settings_key_color">Key Color</string>
+    <string name="settings_key_color_default">Default</string>
+    <string name="color_red">Red</string>
+    <string name="color_pink">Pink</string>
+    <string name="color_purple">Purple</string>
+    <string name="color_deep_purple">Deep Purple</string>
+    <string name="color_indigo">Indigo</string>
+    <string name="color_blue">Blue</string>
+    <string name="color_cyan">Cyan</string>
+    <string name="color_teal">Teal</string>
+    <string name="color_green">Green</string>
+    <string name="color_yellow">Yellow</string>
+    <string name="color_amber">Amber</string>
+    <string name="color_orange">Orange</string>
+    <string name="color_brown">Brown</string>
+    <string name="color_blue_grey">Blue Grey</string>
+    <string name="settings_mode">Operating Mode</string>
+    <string name="settings_mode_normal">Normal</string>
+    <string name="settings_config_server">Config Server</string>
+    <string name="settings_config_server_not_configured">Not configured</string>
+    <string name="settings_log_level">Log Level</string>
+    <string name="settings_log_level_off">Off</string>
+    <string name="settings_about">About</string>
+    <string name="settings_exit">Exit</string>
+    <string name="settings_floating_bottom_bar">Floating Bottom Bar</string>
+    <string name="settings_floating_bottom_bar_summary">Use pill-shaped floating navigation bar</string>
+    <string name="settings_blur_effects">Blur Effects</string>
+    <string name="settings_blur_effects_summary">Enable blur and transparency effects</string>
+    <string name="settings_floating_bar_blur">Floating Bar Blur</string>
+    <string name="settings_floating_bar_blur_summary">Enable blur on floating bottom bar</string>
+
+    <!-- About -->
+    <string name="about_title">About EasyTier</string>
+    <string name="about_version">Version %s</string>
+    <string name="about_description">A lightweight, decentralized mesh VPN with WireGuard support.</string>
+    <string name="about_github">GitHub</string>
+    <string name="about_github_url">https://github.com/qingkong9579/easytier-miuix</string>
+
+    <!-- Config Server -->
+    <string name="config_server_title">Config Server</string>
+    <string name="config_server_url_hint">Enter config server URL</string>
+    <string name="config_server_save">Save</string>
+    <string name="config_server_cancel">Cancel</string>
+
+    <!-- Log Level -->
+    <string name="log_level_off">Off</string>
+    <string name="log_level_warn">Warn</string>
+    <string name="log_level_info">Info</string>
+    <string name="log_level_debug">Debug</string>
+    <string name="log_level_trace">Trace</string>
+
+    <!-- Network -->
+    <string name="network_create">Create Network</string>
+    <string name="network_edit">Edit</string>
+    <string name="network_delete">Delete</string>
+    <string name="network_export">Export Config</string>
+    <string name="network_import">Import Config</string>
+    <string name="network_run">Run</string>
+    <string name="network_stop">Stop</string>
+    <string name="network_running">Running</string>
+    <string name="network_stopped">Stopped</string>
+    <string name="network_empty">Select or create a network to get started</string>
+    <string name="network_name_prefix">Network</string>
+    <string name="edit_network">Edit Network</string>
+
+    <!-- Config - Basic -->
+    <string name="config_basic_settings">Basic Settings</string>
+    <string name="config_virtual_ipv4">Virtual IPv4</string>
+    <string name="config_virtual_ipv4_dhcp">Virtual IPv4 (DHCP enabled)</string>
+    <string name="config_dhcp">DHCP</string>
+    <string name="config_dhcp_enabled">Enabled - IP assigned automatically</string>
+    <string name="config_dhcp_disabled">Disabled - use static IP</string>
+    <string name="config_network_name">Network Name</string>
+    <string name="config_network_secret">Network Secret</string>
+    <string name="config_instance_name">Instance Name (optional)</string>
+    <string name="config_initial_peers">Initial Peers</string>
+    <string name="config_peer_url_hint">e.g. tcp://public.easytier.top:11010</string>
+    <string name="config_listeners">Listeners</string>
+    <string name="config_listeners_hint">e.g. tcp://0.0.0.0:11010</string>
+    <string name="config_listeners_empty">No listeners configured. Tap + Add to add one.</string>
+    <string name="config_add_listener">Add Listener</string>
+    <string name="config_listener_protocol">Protocol</string>
+    <string name="config_listener_bind_address">Bind Address</string>
+    <string name="config_listener_port">Port</string>
+    <string name="config_proxy_cidrs">Proxy CIDRs</string>
+    <string name="config_proxy_cidrs_hint">e.g. 10.0.0.0/24</string>
+    <string name="config_exit_nodes">Exit Nodes</string>
+    <string name="config_exit_nodes_hint">e.g. 10.0.0.1</string>
+
+    <!-- Config - Advanced -->
+    <string name="config_advanced_settings">Advanced Settings</string>
+    <string name="config_advanced_expand">Expand</string>
+    <string name="config_advanced_collapse">Collapse</string>
+    <string name="config_hostname">Hostname</string>
+    <string name="config_dev_name">Device Name</string>
+    <string name="config_mtu">MTU (leave empty for default)</string>
+    <string name="config_latency_first">Latency First</string>
+    <string name="config_latency_first_summary">Prioritize latency over bandwidth</string>
+    <string name="config_disable_ipv6">Disable IPv6</string>
+    <string name="config_disable_ipv6_summary">Disable IPv6 support</string>
+    <string name="config_enable_kcp_proxy">Enable KCP Proxy</string>
+    <string name="config_enable_kcp_proxy_summary">Enable KCP protocol proxy</string>
+    <string name="config_disable_p2p">Disable P2P</string>
+    <string name="config_disable_p2p_summary">Disable peer-to-peer connections</string>
+    <string name="config_no_tun">No TUN</string>
+    <string name="config_no_tun_summary">Run without TUN device</string>
+    <string name="config_enable_exit_node">Enable Exit Node</string>
+    <string name="config_enable_exit_node_summary">Allow this node to be used as exit node</string>
+    <string name="config_multi_thread">Multi Thread</string>
+    <string name="config_multi_thread_summary">Enable multi-threaded processing</string>
+    <string name="config_enable_magic_dns">Enable Magic DNS</string>
+    <string name="config_enable_magic_dns_summary">Enable Magic DNS resolution</string>
+    <string name="config_private_mode">Private Mode</string>
+    <string name="config_private_mode_summary">Enable private mode</string>
+    <string name="config_disable_encryption">Disable Encryption</string>
+    <string name="config_disable_encryption_summary">Disable traffic encryption</string>
+    <string name="config_disable_tcp_hole_punching">Disable TCP Hole Punching</string>
+    <string name="config_disable_tcp_hole_punching_summary">Disable TCP hole punching</string>
+    <string name="config_disable_udp_hole_punching">Disable UDP Hole Punching</string>
+    <string name="config_disable_udp_hole_punching_summary">Disable UDP hole punching</string>
+
+    <!-- Config - VPN Portal -->
+    <string name="config_vpn_portal">VPN Portal</string>
+    <string name="config_vpn_portal_enable">Enable VPN Portal</string>
+    <string name="config_vpn_portal_enable_summary">Enable WireGuard VPN portal</string>
+    <string name="config_vpn_portal_port">Listen Port</string>
+    <string name="config_vpn_portal_network">Client Network Address</string>
+    <string name="config_vpn_portal_network_len">Client Network Length</string>
+
+    <!-- Config - SOCKS5 -->
+    <string name="config_socks5_proxy">SOCKS5 Proxy</string>
+    <string name="config_socks5_enable">Enable SOCKS5</string>
+    <string name="config_socks5_enable_summary">Enable SOCKS5 proxy</string>
+    <string name="config_socks5_port">SOCKS5 Port</string>
+
+    <!-- Config - Port Forwards -->
+    <string name="config_port_forwards">Port Forwards</string>
+    <string name="config_port_forward_add">Add Port Forward</string>
+    <string name="config_port_forward_delete">Delete</string>
+    <string name="config_port_forward_protocol">Protocol</string>
+    <string name="config_port_forward_bind_ip">Bind IP</string>
+    <string name="config_port_forward_bind_port">Bind Port</string>
+    <string name="config_port_forward_dst_ip">Dst IP</string>
+    <string name="config_port_forward_dst_port">Dst Port</string>
+
+    <!-- Config - ACL -->
+    <string name="config_acl">Access Control</string>
+
+    <!-- Config - Actions -->
+    <string name="config_save">Save</string>
+    <string name="config_run_network">Run Network</string>
+
+    <!-- Status -->
+    <string name="status_no_running">No running network</string>
+    <string name="status_node_info">My Node Info</string>
+    <string name="status_events">Events</string>
+    <string name="status_peer_info">Peer Info</string>
+    <string name="status_no_peers">No connected peers</string>
+    <string name="status_peer_id">Peer ID</string>
+    <string name="status_virtual_ip">Virtual IP</string>
+    <string name="status_hostname">Hostname</string>
+    <string name="status_version">Version</string>
+    <string name="status_public_ip">Public IP</string>
+    <string name="status_local_ip">Local IP</string>
+    <string name="status_nat_type">NAT Type</string>
+    <string name="status_show_more">Show More</string>
+    <string name="status_show_less">Show Less</string>
+    <string name="status_nat_unknown">Unknown</string>
+    <string name="status_nat_endpoint_independent">EndpointIndependent</string>
+    <string name="status_nat_endpoint_dependent">EndpointDependent</string>
+    <string name="status_nat_symmetric">Symmetric</string>
+    <string name="status_nat_type_format">Type %d</string>
+    <string name="status_loss">Loss</string>
+    <string name="status_cost">Cost</string>
+
+    <!-- Common -->
+    <string name="ok">OK</string>
+    <string name="cancel">Cancel</string>
+    <string name="save">Save</string>
+    <string name="delete">Delete</string>
+    <string name="retry">Retry</string>
+    <string name="error">Error</string>
+    <string name="loading">Loading…</string>
+</resources>

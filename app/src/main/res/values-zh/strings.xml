@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">EasyTier</string>
+
+    <!-- Navigation -->
+    <string name="nav_networks">网络</string>
+    <string name="nav_status">状态</string>
+    <string name="nav_settings">设置</string>
+
+    <!-- Mode -->
+    <string name="mode_normal">普通模式</string>
+    <string name="mode_service">服务模式</string>
+    <string name="mode_remote">远程模式</string>
+    <string name="mode_switcher_title">切换模式</string>
+    <string name="mode_service_desc">服务模式将 EasyTier 作为系统服务管理。</string>
+    <string name="mode_remote_rpc">远程 RPC 地址</string>
+
+    <!-- Settings -->
+    <string name="settings_language">语言</string>
+    <string name="settings_language_summary">选择应用显示语言</string>
+    <string name="language_system">跟随系统</string>
+    <string name="settings_theme">主题</string>
+    <string name="settings_theme_summary">自定义主题颜色和样式</string>
+    <string name="settings_theme_mode_system">跟随系统</string>
+    <string name="settings_theme_mode_light">浅色</string>
+    <string name="settings_theme_mode_dark">深色</string>
+    <string name="settings_monet">动态颜色</string>
+    <string name="settings_monet_summary">使用 Material You 动态颜色</string>
+    <string name="settings_key_color">主题色</string>
+    <string name="settings_key_color_default">默认</string>
+    <string name="color_red">红色</string>
+    <string name="color_pink">粉色</string>
+    <string name="color_purple">紫色</string>
+    <string name="color_deep_purple">深紫色</string>
+    <string name="color_indigo">靛蓝色</string>
+    <string name="color_blue">蓝色</string>
+    <string name="color_cyan">青色</string>
+    <string name="color_teal">蓝绿色</string>
+    <string name="color_green">绿色</string>
+    <string name="color_yellow">黄色</string>
+    <string name="color_amber">琥珀色</string>
+    <string name="color_orange">橙色</string>
+    <string name="color_brown">棕色</string>
+    <string name="color_blue_grey">蓝灰色</string>
+    <string name="settings_mode">运行模式</string>
+    <string name="settings_mode_normal">普通模式</string>
+    <string name="settings_config_server">配置服务器</string>
+    <string name="settings_config_server_not_configured">未配置</string>
+    <string name="settings_log_level">日志级别</string>
+    <string name="settings_log_level_off">关闭</string>
+    <string name="settings_about">关于</string>
+    <string name="settings_exit">退出</string>
+    <string name="settings_floating_bottom_bar">悬浮底栏</string>
+    <string name="settings_floating_bottom_bar_summary">使用药丸形状的悬浮导航栏</string>
+    <string name="settings_blur_effects">模糊效果</string>
+    <string name="settings_blur_effects_summary">启用模糊和透明效果</string>
+    <string name="settings_floating_bar_blur">悬浮栏模糊</string>
+    <string name="settings_floating_bar_blur_summary">为悬浮底栏启用模糊效果</string>
+
+    <!-- About -->
+    <string name="about_title">关于 EasyTier</string>
+    <string name="about_version">版本 %s</string>
+    <string name="about_description">轻量级、去中心化的 Mesh VPN，支持 WireGuard。</string>
+    <string name="about_github">GitHub</string>
+    <string name="about_github_url">https://github.com/qingkong9579/easytier-miuix</string>
+
+    <!-- Config Server -->
+    <string name="config_server_title">配置服务器</string>
+    <string name="config_server_url_hint">输入配置服务器 URL</string>
+    <string name="config_server_save">保存</string>
+    <string name="config_server_cancel">取消</string>
+
+    <!-- Log Level -->
+    <string name="log_level_off">关闭</string>
+    <string name="log_level_warn">警告</string>
+    <string name="log_level_info">信息</string>
+    <string name="log_level_debug">调试</string>
+    <string name="log_level_trace">跟踪</string>
+
+    <!-- Network -->
+    <string name="network_create">创建网络</string>
+    <string name="network_edit">编辑</string>
+    <string name="network_delete">删除</string>
+    <string name="network_export">导出配置</string>
+    <string name="network_import">导入配置</string>
+    <string name="network_run">运行</string>
+    <string name="network_stop">停止</string>
+    <string name="network_running">运行中</string>
+    <string name="network_stopped">已停止</string>
+    <string name="network_empty">选择或创建一个网络以开始使用</string>
+    <string name="network_name_prefix">网络</string>
+    <string name="edit_network">编辑网络</string>
+
+    <!-- Config - Basic -->
+    <string name="config_basic_settings">基本设置</string>
+    <string name="config_virtual_ipv4">虚拟 IPv4</string>
+    <string name="config_virtual_ipv4_dhcp">虚拟 IPv4（DHCP 已启用）</string>
+    <string name="config_dhcp">DHCP</string>
+    <string name="config_dhcp_enabled">已启用 - IP 自动分配</string>
+    <string name="config_dhcp_disabled">已禁用 - 使用静态 IP</string>
+    <string name="config_network_name">网络名称</string>
+    <string name="config_network_secret">网络密钥</string>
+    <string name="config_instance_name">实例名称（可选）</string>
+    <string name="config_initial_peers">初始节点</string>
+    <string name="config_peer_url_hint">例如 tcp://public.easytier.top:11010</string>
+    <string name="config_listeners">监听地址</string>
+    <string name="config_listeners_hint">例如 tcp://0.0.0.0:11010</string>
+    <string name="config_listeners_empty">未配置监听地址，点击 + 添加</string>
+    <string name="config_add_listener">添加监听</string>
+    <string name="config_listener_protocol">协议</string>
+    <string name="config_listener_bind_address">绑定地址</string>
+    <string name="config_listener_port">端口</string>
+    <string name="config_proxy_cidrs">代理 CIDR</string>
+    <string name="config_proxy_cidrs_hint">例如 10.0.0.0/24</string>
+    <string name="config_exit_nodes">出口节点</string>
+    <string name="config_exit_nodes_hint">例如 10.0.0.1</string>
+
+    <!-- Config - Advanced -->
+    <string name="config_advanced_settings">高级设置</string>
+    <string name="config_advanced_expand">展开</string>
+    <string name="config_advanced_collapse">收起</string>
+    <string name="config_hostname">主机名</string>
+    <string name="config_dev_name">设备名称</string>
+    <string name="config_mtu">MTU（留空使用默认值）</string>
+    <string name="config_latency_first">延迟优先</string>
+    <string name="config_latency_first_summary">优先考虑延迟而非带宽</string>
+    <string name="config_disable_ipv6">禁用 IPv6</string>
+    <string name="config_disable_ipv6_summary">禁用 IPv6 支持</string>
+    <string name="config_enable_kcp_proxy">启用 KCP 代理</string>
+    <string name="config_enable_kcp_proxy_summary">启用 KCP 协议代理</string>
+    <string name="config_disable_p2p">禁用 P2P</string>
+    <string name="config_disable_p2p_summary">禁用点对点连接</string>
+    <string name="config_no_tun">无 TUN</string>
+    <string name="config_no_tun_summary">不使用 TUN 设备运行</string>
+    <string name="config_enable_exit_node">启用出口节点</string>
+    <string name="config_enable_exit_node_summary">允许此节点作为出口节点</string>
+    <string name="config_multi_thread">多线程</string>
+    <string name="config_multi_thread_summary">启用多线程处理</string>
+    <string name="config_enable_magic_dns">启用 Magic DNS</string>
+    <string name="config_enable_magic_dns_summary">启用 Magic DNS 解析</string>
+    <string name="config_private_mode">私有模式</string>
+    <string name="config_private_mode_summary">启用私有模式</string>
+    <string name="config_disable_encryption">禁用加密</string>
+    <string name="config_disable_encryption_summary">禁用流量加密</string>
+    <string name="config_disable_tcp_hole_punching">禁用 TCP 打洞</string>
+    <string name="config_disable_tcp_hole_punching_summary">禁用 TCP 打洞</string>
+    <string name="config_disable_udp_hole_punching">禁用 UDP 打洞</string>
+    <string name="config_disable_udp_hole_punching_summary">禁用 UDP 打洞</string>
+
+    <!-- Config - VPN Portal -->
+    <string name="config_vpn_portal">VPN 门户</string>
+    <string name="config_vpn_portal_enable">启用 VPN 门户</string>
+    <string name="config_vpn_portal_enable_summary">启用 WireGuard VPN 门户</string>
+    <string name="config_vpn_portal_port">监听端口</string>
+    <string name="config_vpn_portal_network">客户端网络地址</string>
+    <string name="config_vpn_portal_network_len">客户端网络长度</string>
+
+    <!-- Config - SOCKS5 -->
+    <string name="config_socks5_proxy">SOCKS5 代理</string>
+    <string name="config_socks5_enable">启用 SOCKS5</string>
+    <string name="config_socks5_enable_summary">启用 SOCKS5 代理</string>
+    <string name="config_socks5_port">SOCKS5 端口</string>
+
+    <!-- Config - Port Forwards -->
+    <string name="config_port_forwards">端口转发</string>
+    <string name="config_port_forward_add">添加端口转发</string>
+    <string name="config_port_forward_delete">删除</string>
+    <string name="config_port_forward_protocol">协议</string>
+    <string name="config_port_forward_bind_ip">绑定 IP</string>
+    <string name="config_port_forward_bind_port">绑定端口</string>
+    <string name="config_port_forward_dst_ip">目标 IP</string>
+    <string name="config_port_forward_dst_port">目标端口</string>
+
+    <!-- Config - ACL -->
+    <string name="config_acl">访问控制</string>
+
+    <!-- Config - Actions -->
+    <string name="config_save">保存</string>
+    <string name="config_run_network">运行网络</string>
+
+    <!-- Status -->
+    <string name="status_no_running">没有运行中的网络</string>
+    <string name="status_node_info">我的节点信息</string>
+    <string name="status_events">事件</string>
+    <string name="status_peer_info">对等节点信息</string>
+    <string name="status_no_peers">暂无连接的节点</string>
+    <string name="status_peer_id">节点 ID</string>
+    <string name="status_virtual_ip">虚拟 IP</string>
+    <string name="status_hostname">主机名</string>
+    <string name="status_version">版本</string>
+    <string name="status_public_ip">公网 IP</string>
+    <string name="status_local_ip">本地 IP</string>
+    <string name="status_nat_type">NAT 类型</string>
+    <string name="status_show_more">显示更多</string>
+    <string name="status_show_less">收起</string>
+    <string name="status_nat_unknown">未知</string>
+    <string name="status_nat_endpoint_independent">端点无关</string>
+    <string name="status_nat_endpoint_dependent">端点相关</string>
+    <string name="status_nat_symmetric">对称</string>
+    <string name="status_nat_type_format">类型 %d</string>
+    <string name="status_loss">丢包</string>
+    <string name="status_cost">开销</string>
+
+    <!-- Common -->
+    <string name="ok">确定</string>
+    <string name="cancel">取消</string>
+    <string name="save">保存</string>
+    <string name="delete">删除</string>
+    <string name="retry">重试</string>
+    <string name="error">错误</string>
+    <string name="loading">加载中…</string>
+</resources>
