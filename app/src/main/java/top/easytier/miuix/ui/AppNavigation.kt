@@ -1,6 +1,7 @@
 package top.easytier.miuix.ui
 
-import androidx.activity.compose.BackHandler
+import androidx.activity.OnBackPressedCallback
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -98,22 +100,20 @@ private fun AppNavigationContent(
         drawContent()
     }
 
-    // Handle back gesture/button
-    BackHandler {
-        when {
-            editingInstanceId != null -> {
-                // Go back from edit config
-                editingInstanceId = null
-            }
-            showThemeSettings -> {
-                // Go back from theme settings
-                showThemeSettings = false
-            }
-            else -> {
-                // On main page, exit app
-                onExitApp()
+    // Handle back gesture/button — use OnBackPressedCallback for MIUI compat
+    val backActivity = LocalContext.current as ComponentActivity
+    DisposableEffect(backActivity) {
+        val callback = object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                when {
+                    editingInstanceId != null -> editingInstanceId = null
+                    showThemeSettings -> showThemeSettings = false
+                    else -> onExitApp()
+                }
             }
         }
+        backActivity.onBackPressedDispatcher.addCallback(callback)
+        onDispose { callback.remove() }
     }
 
     val items = BottomBarDestination.entries.map { dest ->
