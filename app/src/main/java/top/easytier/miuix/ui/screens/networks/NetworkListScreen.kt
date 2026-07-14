@@ -18,6 +18,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -45,9 +46,9 @@ fun NetworkListScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 16.dp),
     ) {
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
 
         // Create network button
         Button(
@@ -104,16 +105,26 @@ private fun NetworkInstanceCard(
         modifier = Modifier.fillMaxWidth(),
         onClick = onSelect,
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            // Instance name and status indicator
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                // Status dot
+                val dotColor = if (instance.running) MiuixTheme.colorScheme.primary
+                    else MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.4f)
+                Box(
+                    modifier = Modifier
+                        .padding(end = 10.dp)
+                        .height(10.dp)
+                        .width(10.dp)
+                        .drawBehind { drawCircle(dotColor) },
+                )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = instance.name.ifEmpty { instance.instanceId.take(8) },
-                        style = MiuixTheme.textStyles.title2,
+                        style = MiuixTheme.textStyles.title1,
                     )
                     Text(
                         text = if (instance.running) stringResource(R.string.network_running) else stringResource(R.string.network_stopped),
@@ -121,17 +132,25 @@ private fun NetworkInstanceCard(
                         color = if (instance.running) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     )
                 }
+            }
 
-                Row {
-                    TextButton(text = stringResource(R.string.network_edit), onClick = onEdit)
-                    Spacer(Modifier.width(4.dp))
-                    if (instance.running) {
-                        TextButton(text = stringResource(R.string.network_stop), onClick = onStop)
-                    } else {
-                        TextButton(text = stringResource(R.string.network_run), onClick = onRun)
-                    }
-                    Spacer(Modifier.width(4.dp))
-                    TextButton(text = stringResource(R.string.network_delete), onClick = onDelete)
+            // Action row: edit/delete secondary, run/stop primary
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(text = stringResource(R.string.network_edit), onClick = onEdit)
+                Spacer(Modifier.width(4.dp))
+                TextButton(
+                    text = stringResource(R.string.network_delete),
+                    onClick = onDelete,
+                )
+                Spacer(Modifier.width(8.dp))
+                if (instance.running) {
+                    TextButton(text = stringResource(R.string.network_stop), onClick = onStop)
+                } else {
+                    TextButton(text = stringResource(R.string.network_run), onClick = onRun)
                 }
             }
 

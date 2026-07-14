@@ -135,10 +135,10 @@ fun ConfigScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 12.dp)
+            .padding(horizontal = 16.dp)
             .verticalScroll(rememberScrollState()),
     ) {
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
 
         // Basic Settings
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -177,7 +177,7 @@ fun ConfigScreen(
             }
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
 
         // Initial Peers
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -190,7 +190,7 @@ fun ConfigScreen(
             )
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
 
         // Listeners
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -202,7 +202,7 @@ fun ConfigScreen(
             )
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
 
         // Proxy CIDRs
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -215,7 +215,7 @@ fun ConfigScreen(
             )
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
 
         // Exit Nodes
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -228,7 +228,7 @@ fun ConfigScreen(
             )
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
 
         // Advanced Settings
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -335,7 +335,7 @@ fun ConfigScreen(
             }
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
 
         // VPN Portal
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -378,7 +378,7 @@ fun ConfigScreen(
             }
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
 
         // SOCKS5 Proxy
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -409,7 +409,7 @@ fun ConfigScreen(
             }
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
 
         // Port Forwards
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -430,7 +430,7 @@ fun ConfigScreen(
             }
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
 
         // ACL
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -451,7 +451,7 @@ fun ConfigScreen(
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(24.dp))
 
         // Action buttons
         Row(

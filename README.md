@@ -19,7 +19,7 @@ EasyTier miuix 是 [EasyTier](https://github.com/EasyTier/EasyTier) 的原生 An
 ## 功能
 
 - **网络管理** — 创建、编辑、删除网络配置，支持 Peer、Listener、Proxy CIDR 等完整配置
-- **运行监控** — 实时查看节点信息、对等连接、流量图表和事件日志
+- **运行监控** — 实时查看节点信息（IPv4/IPv6）、对等连接、流量图表和事件日志
 - **VPN 服务** — 基于 Android VpnService 集成 EasyTier 核心的路由代理
 - **主题定制** — Monet 动态取色、深色/浅色模式、主题色自定义
 - **液态玻璃** — 悬浮胶囊底栏，支持 vibrancy + 高斯模糊 + 折射 lens 效果
@@ -31,13 +31,13 @@ EasyTier miuix 是 [EasyTier](https://github.com/EasyTier/EasyTier) 的原生 An
 <table>
 <tr>
 <td><img src="screenshots/networks.jpg" alt="网络列表" width="280" /></td>
-<td><img src="screenshots/status.jpg" alt="状态监控" width="280" /></td>
-<td><img src="screenshots/about.jpg" alt="对等节点信息" width="280" /></td>
+<td><img src="screenshots/status.jpg" alt="节点信息" width="280" /></td>
+<td><img src="screenshots/settings.jpg" alt="设置页面" width="280" /></td>
 </tr>
 <tr>
 <td align="center">网络列表</td>
-<td align="center">状态监控</td>
-<td align="center">对等节点信息</td>
+<td align="center">节点信息</td>
+<td align="center">设置页面</td>
 </tr>
 </table>
 </div>

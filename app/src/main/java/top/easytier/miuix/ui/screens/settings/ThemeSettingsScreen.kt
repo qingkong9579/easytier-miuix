@@ -69,9 +69,9 @@ fun ThemeSettingsScreen(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 16.dp),
     ) {
-        item { Spacer(Modifier.height(8.dp)) }
+        item { Spacer(Modifier.height(12.dp)) }
 
         // Theme mode selection - no card border, just TabRow
         item {
@@ -91,7 +91,7 @@ fun ThemeSettingsScreen(
             )
         }
 
-        item { Spacer(Modifier.height(8.dp)) }
+        item { Spacer(Modifier.height(12.dp)) }
 
         // Monet and color settings - active switch uses primary color
         item {
@@ -133,7 +133,7 @@ fun ThemeSettingsScreen(
             }
         }
 
-        item { Spacer(Modifier.height(8.dp)) }
+        item { Spacer(Modifier.height(12.dp)) }
 
         // UI settings
         item {
