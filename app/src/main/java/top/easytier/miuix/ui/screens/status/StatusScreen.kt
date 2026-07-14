@@ -211,6 +211,13 @@ private fun NodeInfoChips(nodeInfo: top.easytier.miuix.data.model.NodeInfo) {
                     InfoChip(stringResource(R.string.status_local_ip), it.toString())
                 }
                 InfoChip(stringResource(R.string.status_nat_type), natTypeName(nodeInfo.stunInfo.udpNatType))
+                // IPv6
+                nodeInfo.publicIpv6?.let {
+                    InfoChip(stringResource(R.string.status_public_ipv6), it.toString())
+                }
+                nodeInfo.interfaceIpv6s.firstOrNull()?.let {
+                    InfoChip(stringResource(R.string.status_local_ipv6), it.toString())
+                }
             }
         }
     }
@@ -344,6 +351,14 @@ private fun PeerCard(pair: PeerRoutePair) {
 
                     PeerInfoRow(stringResource(R.string.peer_version), route.version.ifEmpty { "-" })
                     PeerInfoRow(stringResource(R.string.peer_id_label), peer?.peerId?.toString() ?: "-")
+
+                    // Tunnel addresses
+                    conn?.tunnel?.localAddr?.url?.takeIf { it.isNotEmpty() }?.let {
+                        PeerInfoRow(stringResource(R.string.peer_tunnel_local), it)
+                    }
+                    conn?.tunnel?.remoteAddr?.url?.takeIf { it.isNotEmpty() }?.let {
+                        PeerInfoRow(stringResource(R.string.peer_tunnel_remote), it)
+                    }
 
                     if (route.proxyCidrs.isNotEmpty()) {
                         Spacer(Modifier.height(6.dp))

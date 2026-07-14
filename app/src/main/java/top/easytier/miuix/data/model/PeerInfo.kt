@@ -22,7 +22,44 @@ data class Ipv6Addr(
     val part2: Long = 0,
     val part3: Long = 0,
     val part4: Long = 0,
-)
+) {
+    override fun toString(): String {
+        val hextets = listOf(
+            ((part1 shr 16) and 0xFFFF).toInt(),
+            (part1 and 0xFFFF).toInt(),
+            ((part2 shr 16) and 0xFFFF).toInt(),
+            (part2 and 0xFFFF).toInt(),
+            ((part3 shr 16) and 0xFFFF).toInt(),
+            (part3 and 0xFFFF).toInt(),
+            ((part4 shr 16) and 0xFFFF).toInt(),
+            (part4 and 0xFFFF).toInt(),
+        )
+        // Find longest contiguous run of zeros for :: compression (RFC 5952)
+        var bestStart = -1
+        var bestLen = 0
+        var curStart = -1
+        for (i in hextets.indices) {
+            if (hextets[i] == 0) {
+                if (curStart == -1) curStart = i
+                val len = i - curStart + 1
+                if (len > bestLen) {
+                    bestStart = curStart
+                    bestLen = len
+                }
+            } else {
+                curStart = -1
+            }
+        }
+        // Only compress runs of 2+ zeros
+        if (bestLen < 2) bestStart = -1
+
+        return hextets.mapIndexed { i, h ->
+            if (bestStart >= 0 && i == bestStart) ":" // start of compression
+            else if (bestStart >= 0 && i in bestStart until bestStart + bestLen) null // skip compressed
+            else String.format("%x", h)
+        }.filterNotNull().joinToString(":").replace(":::", "::")
+    }
+}
 
 data class StunInfo(
     val udpNatType: Int = 0,

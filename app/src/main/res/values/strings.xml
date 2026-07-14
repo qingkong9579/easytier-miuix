@@ -211,6 +211,10 @@
     <string name="status_nat_type_format">Type %d</string>
     <string name="status_loss">Loss</string>
     <string name="status_cost">Cost</string>
+    <string name="status_public_ipv6">Public IPv6</string>
+    <string name="status_local_ipv6">Local IPv6</string>
+    <string name="peer_tunnel_local">Tunnel Local</string>
+    <string name="peer_tunnel_remote">Tunnel Remote</string>
 
     <!-- Common -->
     <string name="ok">OK</string>

@@ -211,6 +211,10 @@
     <string name="status_nat_type_format">类型 %d</string>
     <string name="status_loss">丢包</string>
     <string name="status_cost">开销</string>
+    <string name="status_public_ipv6">公网 IPv6</string>
+    <string name="status_local_ipv6">本地 IPv6</string>
+    <string name="peer_tunnel_local">隧道本地地址</string>
+    <string name="peer_tunnel_remote">隧道远端地址</string>
 
     <!-- Common -->
     <string name="ok">确定</string>

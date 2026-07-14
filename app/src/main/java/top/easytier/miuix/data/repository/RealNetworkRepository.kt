@@ -16,6 +16,7 @@ import top.easytier.miuix.data.model.toNetworkConfig
 import java.io.File
 import top.easytier.miuix.data.model.Ipv4Addr
 import top.easytier.miuix.data.model.Ipv4Inet
+import top.easytier.miuix.data.model.Ipv6Addr
 import top.easytier.miuix.data.model.Mode
 import top.easytier.miuix.data.model.NetworkConfig
 import top.easytier.miuix.data.model.NetworkInstance
@@ -494,6 +495,40 @@ class RealNetworkRepository @Inject constructor(
 
         val ips = obj.optJSONObject("ips")
         val publicIpv4 = ips?.optJSONObject("public_ipv4")?.optInt("addr", 0)?.let { Ipv4Addr(it) } ?: Ipv4Addr()
+
+        // Parse interface IPv4s
+        val interfaceIpv4s = mutableListOf<Ipv4Addr>()
+        ips?.optJSONArray("interface_ipv4s")?.let { arr ->
+            for (i in 0 until arr.length()) {
+                val addr = arr.optJSONObject(i)?.optInt("addr", 0) ?: 0
+                if (addr != 0) interfaceIpv4s.add(Ipv4Addr(addr))
+            }
+        }
+
+        // Parse public IPv6
+        val publicIpv6 = ips?.optJSONObject("public_ipv6")?.let {
+            Ipv6Addr(
+                part1 = it.optLong("part1", 0),
+                part2 = it.optLong("part2", 0),
+                part3 = it.optLong("part3", 0),
+                part4 = it.optLong("part4", 0),
+            )
+        }
+
+        // Parse interface IPv6s
+        val interfaceIpv6s = mutableListOf<Ipv6Addr>()
+        ips?.optJSONArray("interface_ipv6s")?.let { arr ->
+            for (i in 0 until arr.length()) {
+                val obj6 = arr.optJSONObject(i) ?: continue
+                interfaceIpv6s.add(Ipv6Addr(
+                    part1 = obj6.optLong("part1", 0),
+                    part2 = obj6.optLong("part2", 0),
+                    part3 = obj6.optLong("part3", 0),
+                    part4 = obj6.optLong("part4", 0),
+                ))
+            }
+        }
+
         val listeners = mutableListOf<Url>()
         val listenersArr = obj.optJSONArray("listeners")
         if (listenersArr != null) {
@@ -515,6 +550,9 @@ class RealNetworkRepository @Inject constructor(
             hostname = hostname,
             version = version,
             publicIpv4 = publicIpv4,
+            interfaceIpv4s = interfaceIpv4s,
+            publicIpv6 = publicIpv6,
+            interfaceIpv6s = interfaceIpv6s,
             listeners = listeners,
             stunInfo = stunInfo,
             peerId = peerId,
