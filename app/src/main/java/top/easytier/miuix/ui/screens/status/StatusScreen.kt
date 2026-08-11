@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,6 +34,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -49,6 +51,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 @Composable
 fun StatusScreen(
     modifier: Modifier = Modifier,
+    contentBottomPadding: Dp = 0.dp,
     viewModel: StatusViewModel = hiltViewModel(),
 ) {
     val instance by viewModel.currentInstance.collectAsState()
@@ -78,6 +81,7 @@ fun StatusScreen(
             .fillMaxSize()
             .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(bottom = contentBottomPadding),
     ) {
         item { Spacer(Modifier.height(4.dp)) }
 

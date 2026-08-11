@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import top.easytier.miuix.R
 import top.easytier.miuix.ui.components.FloatingBottomBar
+import top.easytier.miuix.ui.components.FloatingBottomBarBottomMargin
+import top.easytier.miuix.ui.components.FloatingBottomBarHeight
 import top.easytier.miuix.ui.components.FloatingBottomBarItem
 import top.easytier.miuix.ui.screens.config.ConfigScreen
 import top.easytier.miuix.ui.screens.networks.NetworkListScreen
@@ -99,6 +101,11 @@ private fun AppNavigationContent(
         drawRect(surfaceColor)
         drawContent()
     }
+
+    // Scroll padding so content stops just past the top of the floating bottom bar
+    // (bar bottom margin + bar height + the nav bar inset the bar already clears).
+    val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val floatingBarScrollPadding = FloatingBottomBarBottomMargin + FloatingBottomBarHeight + navBarBottom
 
     // Handle back gesture/button — use OnBackPressedCallback for MIUI compat
     val backActivity = LocalContext.current as ComponentActivity
@@ -187,13 +194,19 @@ private fun AppNavigationContent(
                         )
                     }
                     else -> {
+                        // Use scroll contentPadding (not layout padding) so content can slide
+                        // under the floating bar and get the liquid glass effect while scrolling,
+                        // yet still stop just past the bar's top at maximum scroll.
+                        val contentBottomPadding = if (enableFloatingBottomBar) floatingBarScrollPadding else 0.dp
                         when (selectedTab) {
                             0 -> NetworkListScreen(
+                                contentBottomPadding = contentBottomPadding,
                                 onEditNetwork = { editingInstanceId = it },
                                 onCreateNetwork = { editingInstanceId = UUID.randomUUID().toString() },
                             )
-                            1 -> StatusScreen()
+                            1 -> StatusScreen(contentBottomPadding = contentBottomPadding)
                             2 -> SettingsScreen(
+                                contentBottomPadding = contentBottomPadding,
                                 appSettings = appSettings,
                                 onSettingsChange = onSettingsChange,
                                 onOpenTheme = { showThemeSettings = true },
@@ -213,8 +226,7 @@ private fun AppNavigationContent(
                             indication = null,
                             onClick = {},
                         )
-                        .padding(bottom = 12.dp + WindowInsets.navigationBars.asPaddingValues()
-                            .calculateBottomPadding()),
+                        .padding(bottom = FloatingBottomBarBottomMargin + navBarBottom),
                     selectedIndex = { selectedTab },
                     onSelected = { selectedTab = it },
                     backdrop = backdrop,

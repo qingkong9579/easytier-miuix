@@ -1,5 +1,6 @@
 package top.easytier.miuix.ui.screens.settings
 
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import top.easytier.miuix.R
 import top.easytier.miuix.ui.dialogs.AboutDialog
@@ -27,6 +29,7 @@ import top.yukonga.miuix.kmp.preference.ArrowPreference
 @Composable
 fun SettingsScreen(
     modifier: Modifier = Modifier,
+    contentBottomPadding: Dp = 0.dp,
     appSettings: AppSettings = AppSettings(),
     onSettingsChange: (AppSettings) -> Unit = {},
     onOpenTheme: () -> Unit = {},
@@ -40,6 +43,7 @@ fun SettingsScreen(
         modifier = modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp),
+        contentPadding = PaddingValues(bottom = contentBottomPadding),
     ) {
         item { Spacer(Modifier.height(12.dp)) }
 

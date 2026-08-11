@@ -81,6 +81,12 @@ import kotlin.math.sqrt
 
 val LocalFloatingBottomBarTabScale = staticCompositionLocalOf { { 1f } }
 
+/** Height of the floating bottom bar pill. */
+val FloatingBottomBarHeight = 64.dp
+
+/** Bottom margin of the floating bottom bar above the navigation bar inset. */
+val FloatingBottomBarBottomMargin = 12.dp
+
 private val iosIndicatorSpecular: Highlight = Highlight(
     width = 1.dp,
     alpha = 1f,
@@ -340,7 +346,7 @@ fun FloatingBottomBar(
                     }
                 )
                 .then(if (isBlurEnabled) interactiveHighlight.modifier else Modifier)
-                .height(64.dp)
+                .height(FloatingBottomBarHeight)
                 .padding(4.dp),
             verticalAlignment = Alignment.CenterVertically,
             content = content
