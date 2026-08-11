@@ -215,6 +215,9 @@
     <string name="status_local_ipv6">Local IPv6</string>
     <string name="peer_tunnel_local">Tunnel Local</string>
     <string name="peer_tunnel_remote">Tunnel Remote</string>
+    <string name="peer_p2p">P2P</string>
+    <string name="peer_relay">Relay</string>
+    <string name="status_peers_summary">%1$d peers · %2$d relay</string>
 
     <!-- Common -->
     <string name="ok">OK</string>

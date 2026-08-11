@@ -93,7 +93,14 @@ data class Route(
     val stunInfo: StunInfo? = null,
     val instId: String = "",
     val version: String = "",
-)
+) {
+    /**
+     * True when traffic to this peer is relayed through another node (not direct P2P).
+     * Mirrors the EasyTier CLI: cost == 1 means DIRECT; a non-self next hop also means relay.
+     */
+    val isRelay: Boolean
+        get() = cost > 1 || (nextHopPeerId != 0L && nextHopPeerId != peerId)
+}
 
 data class TunnelInfo(
     val tunnelType: String = "",

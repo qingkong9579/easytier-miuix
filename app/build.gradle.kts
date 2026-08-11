@@ -20,8 +20,8 @@ android {
         applicationId = "top.easytier.miuix"
         minSdk = 32
         targetSdk = 37
-        versionCode = 9
-        versionName = "1.1.7"
+        versionCode = 10
+        versionName = "1.1.8"
     }
 
     buildTypes {

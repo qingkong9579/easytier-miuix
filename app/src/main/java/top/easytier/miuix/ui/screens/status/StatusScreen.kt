@@ -1,6 +1,7 @@
 package top.easytier.miuix.ui.screens.status
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -30,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -154,6 +157,8 @@ fun StatusScreen(
             }
         }
 
+        val peerPairs = viewModel.getPeerRoutePairs()
+
         // Peer Info
         item {
             Row(
@@ -163,14 +168,17 @@ fun StatusScreen(
             ) {
                 Text(stringResource(R.string.status_peer_info), style = MiuixTheme.textStyles.title2)
                 Text(
-                    "${viewModel.getPeerRoutePairs().size} peers",
+                    stringResource(
+                        R.string.status_peers_summary,
+                        peerPairs.size,
+                        peerPairs.count { it.route.isRelay },
+                    ),
                     style = MiuixTheme.textStyles.body2,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 )
             }
         }
 
-        val peerPairs = viewModel.getPeerRoutePairs()
         if (peerPairs.isEmpty()) {
             item {
                 Box(
@@ -239,6 +247,24 @@ private fun InfoChip(label: String, value: String) {
             Text(label, style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
             Text(value, style = MiuixTheme.textStyles.body2)
         }
+    }
+}
+
+/** Small capsule badge showing whether a peer is reached directly (P2P) or via relay. */
+@Composable
+private fun RouteModeBadge(relay: Boolean) {
+    val color = if (relay) Color(0xFFFFA000) else Color(0xFF4CAF50)
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(color.copy(alpha = 0.15f))
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+    ) {
+        Text(
+            text = stringResource(if (relay) R.string.peer_relay else R.string.peer_p2p),
+            color = color,
+            style = MiuixTheme.textStyles.body2,
+        )
     }
 }
 
@@ -321,7 +347,10 @@ private fun PeerCard(pair: PeerRoutePair) {
             Spacer(Modifier.height(10.dp))
 
             // Stats row with color-coded values
-            Row(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.peer_tx), style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceVariantSummary, fontSize = 11.sp)
                     Text(formatBytes(stats?.txBytes ?: 0), style = MiuixTheme.textStyles.body2)
@@ -338,6 +367,8 @@ private fun PeerCard(pair: PeerRoutePair) {
                         color = if (lossRate > 0f) lossColor(lossRate) else MiuixTheme.colorScheme.onSurface
                     )
                 }
+                Spacer(Modifier.width(8.dp))
+                RouteModeBadge(relay = pair.route.isRelay)
             }
 
             // Expanded detail

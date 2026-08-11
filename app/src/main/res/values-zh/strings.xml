@@ -215,6 +215,9 @@
     <string name="status_local_ipv6">本地 IPv6</string>
     <string name="peer_tunnel_local">隧道本地地址</string>
     <string name="peer_tunnel_remote">隧道远端地址</string>
+    <string name="peer_p2p">P2P 直连</string>
+    <string name="peer_relay">中继</string>
+    <string name="status_peers_summary">%1$d 个节点 · %2$d 个中继</string>
 
     <!-- Common -->
     <string name="ok">确定</string>
