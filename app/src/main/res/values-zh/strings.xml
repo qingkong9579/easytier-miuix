@@ -227,4 +227,8 @@
     <string name="retry">重试</string>
     <string name="error">错误</string>
     <string name="loading">加载中…</string>
+
+    <!-- 快捷设置磁贴 -->
+    <string name="tile_label">EasyTier VPN</string>
+    <string name="tile_no_config">尚未配置网络</string>
 </resources>

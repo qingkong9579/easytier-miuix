@@ -227,4 +227,8 @@
     <string name="retry">Retry</string>
     <string name="error">Error</string>
     <string name="loading">Loading…</string>
+
+    <!-- Quick Settings Tile -->
+    <string name="tile_label">EasyTier VPN</string>
+    <string name="tile_no_config">No network configured</string>
 </resources>
