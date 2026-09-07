@@ -62,11 +62,13 @@ class MainActivity : AppCompatActivity() {
         }
 
         setContent {
+            val instances by repository.getAllNetworkInstances().collectAsState(initial = emptyList())
             MainContent(
                 prefs = prefs,
                 onLanguageChanged = this::onLanguageChanged,
                 vpnPermissionFlow = repository.vpnPermissionNeeded,
                 vpnLauncher = vpnPermissionLauncher,
+                networkRunning = instances.any { it.running },
             )
         }
     }
@@ -99,6 +101,7 @@ fun MainContent(
     vpnPermissionFlow: kotlinx.coroutines.flow.MutableStateFlow<Intent?> =
         kotlinx.coroutines.flow.MutableStateFlow(null),
     vpnLauncher: androidx.activity.result.ActivityResultLauncher<Intent>? = null,
+    networkRunning: Boolean = false,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val activity = context as? ComponentActivity
@@ -127,6 +130,7 @@ fun MainContent(
     AppTheme(appSettings = appSettings) {
         AppNavigation(
             appSettings = appSettings,
+            networkRunning = networkRunning,
             onSettingsChange = { newSettings ->
                 val oldLanguage = appSettings.language
                 appSettings = newSettings

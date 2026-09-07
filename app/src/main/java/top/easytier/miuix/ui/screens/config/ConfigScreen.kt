@@ -1,5 +1,7 @@
 package top.easytier.miuix.ui.screens.config
 
+import androidx.activity.OnBackPressedCallback
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -12,9 +14,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -23,9 +27,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import top.easytier.miuix.R
-import top.easytier.miuix.ui.components.BoolFlag
-import top.easytier.miuix.ui.components.AclManager
-import top.easytier.miuix.ui.components.BoolFlagGrid
 import top.easytier.miuix.ui.components.ListenerPicker
 import top.easytier.miuix.ui.components.PortForwardEditor
 import top.easytier.miuix.ui.components.UrlListInput
@@ -36,7 +37,43 @@ import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
+import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+
+/** 表单全部本地字段快照，用于脏状态检测 */
+private data class ConfigFormState(
+    val networkName: String,
+    val networkSecret: String,
+    val instanceName: String,
+    val virtualIpv4: String,
+    val dhcp: Boolean,
+    val peerUrls: List<String>,
+    val listenerUrls: List<String>,
+    val proxyCidrs: List<String>,
+    val exitNodes: List<String>,
+    val hostname: String,
+    val devName: String,
+    val mtu: String,
+    val latencyFirst: Boolean,
+    val showAdvanced: Boolean,
+    val disableIpv6: Boolean,
+    val enableKcpProxy: Boolean,
+    val disableP2p: Boolean,
+    val noTun: Boolean,
+    val enableExitNode: Boolean,
+    val multiThread: Boolean,
+    val enableMagicDns: Boolean,
+    val enablePrivateMode: Boolean,
+    val disableEncryption: Boolean,
+    val disableTcpHolePunching: Boolean,
+    val disableUdpHolePunching: Boolean,
+    val enableVpnPortal: Boolean,
+    val vpnPortalListenPort: String,
+    val vpnPortalClientNetworkAddr: String,
+    val vpnPortalClientNetworkLen: String,
+    val enableSocks5: Boolean,
+    val socks5Port: String,
+)
 
 @Composable
 fun ConfigScreen(
@@ -46,55 +83,102 @@ fun ConfigScreen(
     viewModel: ConfigViewModel = hiltViewModel(),
 ) {
     val config by viewModel.config.collectAsState()
+    val saveRunState by viewModel.saveRun.collectAsState()
 
+    // 等待配置加载完成再渲染表单，避免首帧用空/旧数据初始化本地字段
+    var loadGeneration by remember { mutableIntStateOf(0) }
     LaunchedEffect(instanceId) {
         viewModel.loadConfig(instanceId)
+        loadGeneration++
+    }
+    if (loadGeneration == 0) {
+        Column(modifier = modifier.fillMaxSize()) {}
+        return
     }
 
     // Local form state synced from config
-    var networkName by remember(config.instanceId) { mutableStateOf(config.networkName) }
-    var networkSecret by remember(config.instanceId) { mutableStateOf(config.networkSecret) }
-    var instanceName by remember(config.instanceId) { mutableStateOf(config.instanceName) }
-    var virtualIpv4 by remember(config.instanceId) { mutableStateOf(config.virtualIpv4) }
-    var dhcp by remember(config.instanceId) { mutableStateOf(config.dhcp) }
-    var peerUrls by remember(config.instanceId) { mutableStateOf(config.peerUrls) }
-    var listenerUrls by remember(config.instanceId) { mutableStateOf(config.listenerUrls) }
-    var proxyCidrs by remember(config.instanceId) { mutableStateOf(config.proxyCidrs) }
-    var hostname by remember(config.instanceId) { mutableStateOf(config.hostname ?: "") }
-    var devName by remember(config.instanceId) { mutableStateOf(config.devName) }
-    var mtu by remember(config.instanceId) { mutableStateOf(config.mtu?.toString() ?: "") }
-    var latencyFirst by remember(config.instanceId) { mutableStateOf(config.latencyFirst) }
-    var showAdvanced by remember(config.instanceId) { mutableStateOf(config.advancedSettings) }
+    var networkName by remember(instanceId, loadGeneration) { mutableStateOf(config.networkName) }
+    var networkSecret by remember(instanceId, loadGeneration) { mutableStateOf(config.networkSecret) }
+    var instanceName by remember(instanceId, loadGeneration) { mutableStateOf(config.instanceName) }
+    var virtualIpv4 by remember(instanceId, loadGeneration) { mutableStateOf(config.virtualIpv4) }
+    var dhcp by remember(instanceId, loadGeneration) { mutableStateOf(config.dhcp) }
+    var peerUrls by remember(instanceId, loadGeneration) { mutableStateOf(config.peerUrls) }
+    var listenerUrls by remember(instanceId, loadGeneration) { mutableStateOf(config.listenerUrls) }
+    var proxyCidrs by remember(instanceId, loadGeneration) { mutableStateOf(config.proxyCidrs) }
+    var hostname by remember(instanceId, loadGeneration) { mutableStateOf(config.hostname ?: "") }
+    var devName by remember(instanceId, loadGeneration) { mutableStateOf(config.devName) }
+    var mtu by remember(instanceId, loadGeneration) { mutableStateOf(config.mtu?.toString() ?: "") }
+    var latencyFirst by remember(instanceId, loadGeneration) { mutableStateOf(config.latencyFirst) }
+    var showAdvanced by remember(instanceId, loadGeneration) { mutableStateOf(config.advancedSettings) }
     var showPortForwards by remember { mutableStateOf(false) }
-    var showAcl by remember { mutableStateOf(false) }
     var showVpnPortal by remember { mutableStateOf(false) }
     var showSocks5 by remember { mutableStateOf(false) }
 
     // Boolean flags
-    var disableIpv6 by remember(config.instanceId) { mutableStateOf(config.disableIpv6) }
-    var enableKcpProxy by remember(config.instanceId) { mutableStateOf(config.enableKcpProxy) }
-    var disableP2p by remember(config.instanceId) { mutableStateOf(config.disableP2p) }
-    var noTun by remember(config.instanceId) { mutableStateOf(config.noTun) }
-    var enableExitNode by remember(config.instanceId) { mutableStateOf(config.enableExitNode) }
-    var multiThread by remember(config.instanceId) { mutableStateOf(config.multiThread) }
-    var enableMagicDns by remember(config.instanceId) { mutableStateOf(config.enableMagicDns) }
-    var enablePrivateMode by remember(config.instanceId) { mutableStateOf(config.enablePrivateMode) }
-    var disableEncryption by remember(config.instanceId) { mutableStateOf(config.disableEncryption) }
-    var disableTcpHolePunching by remember(config.instanceId) { mutableStateOf(config.disableTcpHolePunching) }
-    var disableUdpHolePunching by remember(config.instanceId) { mutableStateOf(config.disableUdpHolePunching) }
+    var disableIpv6 by remember(instanceId, loadGeneration) { mutableStateOf(config.disableIpv6) }
+    var enableKcpProxy by remember(instanceId, loadGeneration) { mutableStateOf(config.enableKcpProxy) }
+    var disableP2p by remember(instanceId, loadGeneration) { mutableStateOf(config.disableP2p) }
+    var noTun by remember(instanceId, loadGeneration) { mutableStateOf(config.noTun) }
+    var enableExitNode by remember(instanceId, loadGeneration) { mutableStateOf(config.enableExitNode) }
+    var multiThread by remember(instanceId, loadGeneration) { mutableStateOf(config.multiThread) }
+    var enableMagicDns by remember(instanceId, loadGeneration) { mutableStateOf(config.enableMagicDns) }
+    var enablePrivateMode by remember(instanceId, loadGeneration) { mutableStateOf(config.enablePrivateMode) }
+    var disableEncryption by remember(instanceId, loadGeneration) { mutableStateOf(config.disableEncryption) }
+    var disableTcpHolePunching by remember(instanceId, loadGeneration) { mutableStateOf(config.disableTcpHolePunching) }
+    var disableUdpHolePunching by remember(instanceId, loadGeneration) { mutableStateOf(config.disableUdpHolePunching) }
 
     // VPN Portal
-    var enableVpnPortal by remember(config.instanceId) { mutableStateOf(config.enableVpnPortal) }
-    var vpnPortalListenPort by remember(config.instanceId) { mutableStateOf(config.vpnPortalListenPort.toString()) }
-    var vpnPortalClientNetworkAddr by remember(config.instanceId) { mutableStateOf(config.vpnPortalClientNetworkAddr) }
-    var vpnPortalClientNetworkLen by remember(config.instanceId) { mutableStateOf(config.vpnPortalClientNetworkLen.toString()) }
+    var enableVpnPortal by remember(instanceId, loadGeneration) { mutableStateOf(config.enableVpnPortal) }
+    var vpnPortalListenPort by remember(instanceId, loadGeneration) { mutableStateOf(config.vpnPortalListenPort.toString()) }
+    var vpnPortalClientNetworkAddr by remember(instanceId, loadGeneration) { mutableStateOf(config.vpnPortalClientNetworkAddr) }
+    var vpnPortalClientNetworkLen by remember(instanceId, loadGeneration) { mutableStateOf(config.vpnPortalClientNetworkLen.toString()) }
 
     // SOCKS5
-    var enableSocks5 by remember(config.instanceId) { mutableStateOf(config.enableSocks5) }
-    var socks5Port by remember(config.instanceId) { mutableStateOf(config.socks5Port.toString()) }
+    var enableSocks5 by remember(instanceId, loadGeneration) { mutableStateOf(config.enableSocks5) }
+    var socks5Port by remember(instanceId, loadGeneration) { mutableStateOf(config.socks5Port.toString()) }
 
     // Exit nodes
-    var exitNodes by remember(config.instanceId) { mutableStateOf(config.exitNodes) }
+    var exitNodes by remember(instanceId, loadGeneration) { mutableStateOf(config.exitNodes) }
+
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    fun collectForm() = ConfigFormState(
+        networkName = networkName,
+        networkSecret = networkSecret,
+        instanceName = instanceName,
+        virtualIpv4 = virtualIpv4,
+        dhcp = dhcp,
+        peerUrls = peerUrls,
+        listenerUrls = listenerUrls,
+        proxyCidrs = proxyCidrs,
+        exitNodes = exitNodes,
+        hostname = hostname,
+        devName = devName,
+        mtu = mtu,
+        latencyFirst = latencyFirst,
+        showAdvanced = showAdvanced,
+        disableIpv6 = disableIpv6,
+        enableKcpProxy = enableKcpProxy,
+        disableP2p = disableP2p,
+        noTun = noTun,
+        enableExitNode = enableExitNode,
+        multiThread = multiThread,
+        enableMagicDns = enableMagicDns,
+        enablePrivateMode = enablePrivateMode,
+        disableEncryption = disableEncryption,
+        disableTcpHolePunching = disableTcpHolePunching,
+        disableUdpHolePunching = disableUdpHolePunching,
+        enableVpnPortal = enableVpnPortal,
+        vpnPortalListenPort = vpnPortalListenPort,
+        vpnPortalClientNetworkAddr = vpnPortalClientNetworkAddr,
+        vpnPortalClientNetworkLen = vpnPortalClientNetworkLen,
+        enableSocks5 = enableSocks5,
+        socks5Port = socks5Port,
+    )
+
+    val initialForm = remember(instanceId, loadGeneration) { collectForm() }
+    val initialPortForwards = remember(instanceId, loadGeneration) { config.portForwards }
+    val dirty = collectForm() != initialForm || config.portForwards != initialPortForwards
 
     // Sync form state back to viewModel config
     fun syncToConfig() {
@@ -132,6 +216,106 @@ fun ConfigScreen(
         ) }
     }
 
+    // ---------- 校验 ----------
+    var attemptedSave by remember(instanceId, loadGeneration) { mutableStateOf(false) }
+
+    fun validate(): Map<String, String> {
+        val errs = mutableMapOf<String, String>()
+        if (networkName.isBlank()) {
+            errs["name"] = context.getString(R.string.err_network_name_required)
+        }
+        if (!dhcp && !isValidIpv4Cidr(virtualIpv4)) {
+            errs["ipv4"] = context.getString(R.string.err_invalid_ipv4_cidr)
+        }
+        val mtuVal = mtu.toLongOrNull()
+        if (mtu.isNotBlank() && (mtuVal == null || mtuVal !in 1280..65535)) {
+            errs["mtu"] = context.getString(R.string.err_invalid_mtu)
+        }
+        if (enableVpnPortal) {
+            val port = vpnPortalListenPort.toIntOrNull()
+            if (port == null || port !in 1..65535) {
+                errs["portalPort"] = context.getString(R.string.err_invalid_port)
+            }
+        }
+        if (enableSocks5) {
+            val port = socks5Port.toIntOrNull()
+            if (port == null || port !in 1..65535) {
+                errs["socksPort"] = context.getString(R.string.err_invalid_port)
+            }
+        }
+        return errs
+    }
+
+    val errors = if (attemptedSave) validate() else emptyMap()
+
+    // ---------- 保存并运行结果反馈 ----------
+    LaunchedEffect(saveRunState) {
+        if (saveRunState.finished && saveRunState.error == null) {
+            onBack()
+        }
+    }
+    if (saveRunState.finished && saveRunState.error != null) {
+        OverlayDialog(
+            title = stringResource(R.string.error),
+            show = true,
+            onDismissRequest = { viewModel.consumeSaveRun() },
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                Text(saveRunState.error ?: "", style = MiuixTheme.textStyles.body1)
+                Spacer(Modifier.height(16.dp))
+                Button(onClick = { viewModel.consumeSaveRun() }, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.ok))
+                }
+            }
+        }
+    }
+
+    // ---------- 返回键脏状态保护 ----------
+    var showDiscardDialog by remember { mutableStateOf(false) }
+    val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
+    DisposableEffect(backDispatcher, dirty) {
+        if (backDispatcher != null) {
+            val callback = object : OnBackPressedCallback(dirty) {
+                override fun handleOnBackPressed() {
+                    showDiscardDialog = true
+                }
+            }
+            backDispatcher.addCallback(callback)
+            onDispose { callback.remove() }
+        } else {
+            onDispose { }
+        }
+    }
+    if (showDiscardDialog) {
+        OverlayDialog(
+            title = stringResource(R.string.discard_changes_title),
+            show = true,
+            onDismissRequest = { showDiscardDialog = false },
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                Text(stringResource(R.string.discard_changes_msg), style = MiuixTheme.textStyles.body1)
+                Spacer(Modifier.height(16.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = { showDiscardDialog = false },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(stringResource(R.string.keep_editing))
+                    }
+                    Button(
+                        onClick = {
+                            showDiscardDialog = false
+                            onBack()
+                        },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(stringResource(R.string.discard))
+                    }
+                }
+            }
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -156,12 +340,14 @@ fun ConfigScreen(
                     enabled = !dhcp,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                 )
+                FieldError(errors["ipv4"])
                 TextField(
                     value = networkName,
                     onValueChange = { networkName = it },
                     label = stringResource(R.string.config_network_name),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                 )
+                FieldError(errors["name"])
                 TextField(
                     value = networkSecret,
                     onValueChange = { networkSecret = it },
@@ -258,6 +444,7 @@ fun ConfigScreen(
                             label = stringResource(R.string.config_mtu),
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                         )
+                        FieldError(errors["mtu"])
                         SwitchPreference(
                             title = stringResource(R.string.config_latency_first),
                             summary = stringResource(R.string.config_latency_first_summary),
@@ -360,6 +547,7 @@ fun ConfigScreen(
                                 label = stringResource(R.string.config_vpn_portal_port),
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                             )
+                            FieldError(errors["portalPort"])
                             TextField(
                                 value = vpnPortalClientNetworkAddr,
                                 onValueChange = { vpnPortalClientNetworkAddr = it },
@@ -403,6 +591,7 @@ fun ConfigScreen(
                                 label = stringResource(R.string.config_socks5_port),
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                             )
+                            FieldError(errors["socksPort"])
                         }
                     }
                 }
@@ -430,49 +619,67 @@ fun ConfigScreen(
             }
         }
 
-        Spacer(Modifier.height(12.dp))
-
-        // ACL
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column {
-                ArrowPreference(
-                    title = stringResource(R.string.config_acl),
-                    summary = if (showAcl) stringResource(R.string.config_advanced_collapse) else stringResource(R.string.config_advanced_expand),
-                    onClick = { showAcl = !showAcl },
-                )
-                AnimatedVisibility(visible = showAcl) {
-                    Column {
-                        AclManager(
-                            aclToml = "",
-                            onAclTomlChange = { /* TODO: parse and update ACL */ },
-                        )
-                    }
-                }
-            }
-        }
-
         Spacer(Modifier.height(24.dp))
 
         // Action buttons
+        val saving = saveRunState.saving
+        fun onSave(run: Boolean) {
+            attemptedSave = true
+            if (validate().isNotEmpty()) return
+            syncToConfig()
+            if (run) {
+                viewModel.saveAndRun()
+            } else {
+                viewModel.saveConfig { onBack() }
+            }
+        }
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Button(
-                onClick = { syncToConfig(); viewModel.saveConfig(); onBack() },
+                onClick = { onSave(run = false) },
                 modifier = Modifier.weight(1f),
+                enabled = !saving,
             ) {
                 Text(stringResource(R.string.config_save))
             }
             Button(
-                onClick = { syncToConfig(); viewModel.saveAndRun(); onBack() },
+                onClick = { onSave(run = true) },
                 modifier = Modifier.weight(1f),
+                enabled = !saving,
                 colors = ButtonDefaults.buttonColorsPrimary(),
             ) {
-                Text(stringResource(R.string.config_run_network))
+                Text(
+                    if (saving) stringResource(R.string.config_starting)
+                    else stringResource(R.string.config_run_network)
+                )
             }
         }
 
         Spacer(Modifier.height(16.dp))
     }
+}
+
+@Composable
+private fun FieldError(message: String?) {
+    if (!message.isNullOrEmpty()) {
+        Text(
+            text = message,
+            color = MiuixTheme.colorScheme.error,
+            style = MiuixTheme.textStyles.body2,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        )
+    }
+}
+
+private val ipv4CidrRegex = Regex("""^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})$""")
+
+private fun isValidIpv4Cidr(value: String): Boolean {
+    val match = ipv4CidrRegex.matchEntire(value.trim()) ?: return false
+    val (a, b, c, d, prefix) = match.destructured
+    val octets = listOf(a, b, c, d).map { it.toIntOrNull() ?: return false }
+    if (octets.any { it !in 0..255 }) return false
+    val prefixVal = prefix.toIntOrNull() ?: return false
+    return prefixVal in 0..32
 }

@@ -21,12 +21,17 @@ import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
+// 对齐上游 easytier 57afa29：
+// 协议全集 IpScheme = tcp/udp/wg/quic/ws/wss/faketcp（tunnel/mod.rs），
+// 端口按基准 11010 + protocol_port_offset 展开（tcp/udp +0，wg/ws +1，quic/wss +2，faketcp +3）
 private val LISTENER_PRESETS = listOf(
     "tcp://0.0.0.0:11010",
     "udp://0.0.0.0:11010",
     "wg://0.0.0.0:11011",
-    "ws://0.0.0.0:11010",
-    "wss://0.0.0.0:11010",
+    "ws://0.0.0.0:11011",
+    "quic://0.0.0.0:11012",
+    "wss://0.0.0.0:11012",
+    "faketcp://0.0.0.0:11013",
 )
 
 @Composable

@@ -218,6 +218,7 @@
     <string name="peer_p2p">P2P</string>
     <string name="peer_relay">Relay</string>
     <string name="status_peers_summary">%1$d peers · %2$d relay</string>
+    <string name="status_tab_peers">Peers</string>
 
     <!-- Common -->
     <string name="ok">OK</string>
@@ -227,6 +228,52 @@
     <string name="retry">Retry</string>
     <string name="error">Error</string>
     <string name="loading">Loading…</string>
+
+    <!-- Navigation / misc -->
+    <string name="nav_back">Back</string>
+    <string name="copied_to_clipboard">Copied to clipboard</string>
+    <string name="copy_action">Copy</string>
+
+    <!-- Delete confirm -->
+    <string name="delete_network_title">Delete Network</string>
+    <string name="delete_network_msg">Delete \"%1$s\"? This cannot be undone.</string>
+    <string name="delete_network_running_msg">\"%1$s\" is running and will be stopped. Delete it?</string>
+
+    <!-- Config editor -->
+    <string name="discard_changes_title">Discard changes?</string>
+    <string name="discard_changes_msg">Your edits to this network have not been saved.</string>
+    <string name="discard">Discard</string>
+    <string name="keep_editing">Keep Editing</string>
+    <string name="err_network_name_required">Network name is required</string>
+    <string name="err_invalid_ipv4_cidr">Invalid IPv4 CIDR, e.g. 10.144.144.1/24</string>
+    <string name="err_invalid_port">Port must be 1–65535</string>
+    <string name="err_invalid_mtu">MTU must be 1280–65535</string>
+    <string name="config_starting">Starting…</string>
+
+    <!-- Status -->
+    <string name="status_peers_count">%1$d peers</string>
+    <string name="status_empty_cta">Start a Network</string>
+    <string name="chart_peak">Peak %1$s</string>
+    <string name="events_filter_all">All</string>
+    <string name="events_filter_warnings">Warnings+</string>
+    <string name="events_clear">Clear</string>
+    <string name="events_cleared_hint">Events cleared. New events will show up here.</string>
+    <string name="event_peer_conn_added">Peer connected</string>
+    <string name="event_peer_conn_removed">Peer disconnected</string>
+    <string name="event_conn_added">Connection established</string>
+    <string name="event_conn_removed">Connection closed</string>
+    <string name="event_peer_added">Peer online</string>
+    <string name="event_peer_removed">Peer offline</string>
+    <string name="event_listener_added">Listener started</string>
+    <string name="event_listener_removed">Listener stopped</string>
+    <string name="event_detail_title">Event Detail</string>
+
+    <!-- Config server -->
+    <string name="config_server_connect">Connect</string>
+    <string name="config_server_connecting">Connecting…</string>
+    <string name="config_server_state_connected">Connected</string>
+    <string name="config_server_state_disconnected">Disconnected</string>
+    <string name="config_server_clear">Disconnect and clear</string>
 
     <!-- Quick Settings Tile -->
     <string name="tile_label">EasyTier VPN</string>

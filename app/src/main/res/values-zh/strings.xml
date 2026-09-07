@@ -218,6 +218,7 @@
     <string name="peer_p2p">P2P 直连</string>
     <string name="peer_relay">中继</string>
     <string name="status_peers_summary">%1$d 个节点 · %2$d 个中继</string>
+    <string name="status_tab_peers">对端</string>
 
     <!-- Common -->
     <string name="ok">确定</string>
@@ -227,6 +228,52 @@
     <string name="retry">重试</string>
     <string name="error">错误</string>
     <string name="loading">加载中…</string>
+
+    <!-- 导航 / 通用 -->
+    <string name="nav_back">返回</string>
+    <string name="copied_to_clipboard">已复制到剪贴板</string>
+    <string name="copy_action">复制</string>
+
+    <!-- 删除确认 -->
+    <string name="delete_network_title">删除网络</string>
+    <string name="delete_network_msg">确认删除「%1$s」？此操作不可撤销。</string>
+    <string name="delete_network_running_msg">「%1$s」正在运行，删除后将停止连接。确认删除？</string>
+
+    <!-- 配置编辑 -->
+    <string name="discard_changes_title">放弃修改？</string>
+    <string name="discard_changes_msg">你对该网络的修改尚未保存。</string>
+    <string name="discard">放弃</string>
+    <string name="keep_editing">继续编辑</string>
+    <string name="err_network_name_required">请输入网络名称</string>
+    <string name="err_invalid_ipv4_cidr">IPv4 格式不正确，例如 10.144.144.1/24</string>
+    <string name="err_invalid_port">端口需在 1–65535 之间</string>
+    <string name="err_invalid_mtu">MTU 需在 1280–65535 之间</string>
+    <string name="config_starting">正在启动…</string>
+
+    <!-- 状态页 -->
+    <string name="status_peers_count">%1$d 个对端</string>
+    <string name="status_empty_cta">去启动网络</string>
+    <string name="chart_peak">峰值 %1$s</string>
+    <string name="events_filter_all">全部</string>
+    <string name="events_filter_warnings">仅警告</string>
+    <string name="events_clear">清空</string>
+    <string name="events_cleared_hint">事件已清空，新事件将显示在这里。</string>
+    <string name="event_peer_conn_added">对端已连接</string>
+    <string name="event_peer_conn_removed">对端已断开</string>
+    <string name="event_conn_added">连接已建立</string>
+    <string name="event_conn_removed">连接已断开</string>
+    <string name="event_peer_added">节点上线</string>
+    <string name="event_peer_removed">节点离线</string>
+    <string name="event_listener_added">监听器已启动</string>
+    <string name="event_listener_removed">监听器已停止</string>
+    <string name="event_detail_title">事件详情</string>
+
+    <!-- 配置服务器 -->
+    <string name="config_server_connect">连接</string>
+    <string name="config_server_connecting">连接中…</string>
+    <string name="config_server_state_connected">已连接</string>
+    <string name="config_server_state_disconnected">未连接</string>
+    <string name="config_server_clear">断开并清除</string>
 
     <!-- 快捷设置磁贴 -->
     <string name="tile_label">EasyTier VPN</string>

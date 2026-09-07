@@ -18,3 +18,4 @@ easytier-release.jks
 easytier-build/
 .claude/
 .kotlin/
+test-screenshots/ 

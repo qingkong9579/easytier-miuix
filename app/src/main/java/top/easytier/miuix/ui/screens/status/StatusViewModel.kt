@@ -34,6 +34,8 @@ class StatusViewModel @Inject constructor(
 
     private var prevTxSum = 0L
     private var prevRxSum = 0L
+    private var hasBaseline = false
+    private var lastSampleAt = 0L
     private var lastRunningId: String? = null
 
     init {
@@ -47,6 +49,8 @@ class StatusViewModel @Inject constructor(
                 if (runningId != lastRunningId) {
                     prevTxSum = 0L
                     prevRxSum = 0L
+                    hasBaseline = false
+                    lastSampleAt = 0L
                     _txHistory.value = emptyList()
                     _rxHistory.value = emptyList()
                     lastRunningId = runningId
@@ -55,19 +59,39 @@ class StatusViewModel @Inject constructor(
                 val detail = running?.detail ?: run {
                     _txRate.value = "0 B/s"
                     _rxRate.value = "0 B/s"
+                    hasBaseline = false
+                    lastSampleAt = 0L
                     return@collect
                 }
                 val curTxSum = detail.peers.flatMap { it.conns }.sumOf { it.stats?.txBytes ?: 0 }
                 val curRxSum = detail.peers.flatMap { it.conns }.sumOf { it.stats?.rxBytes ?: 0 }
+                val now = android.os.SystemClock.elapsedRealtime()
 
-                if (prevTxSum > 0 && curTxSum >= prevTxSum && curRxSum >= prevRxSum) {
-                    _txRate.value = humanFileSize(curTxSum - prevTxSum) + "/s"
-                    _rxRate.value = humanFileSize(curRxSum - prevRxSum) + "/s"
-                    _txHistory.value = (_txHistory.value + (curTxSum - prevTxSum)).takeLast(60)
-                    _rxHistory.value = (_rxHistory.value + (curRxSum - prevRxSum)).takeLast(60)
+                when {
+                    // 首个样本或连接重建导致累计值回退：只记基准，不产生脏样本
+                    !hasBaseline || curTxSum < prevTxSum || curRxSum < prevRxSum -> {
+                        hasBaseline = true
+                        prevTxSum = curTxSum
+                        prevRxSum = curRxSum
+                        lastSampleAt = now
+                    }
+                    // 轮询间无新数据：保持上次速率，不往图表塞零点
+                    curTxSum == prevTxSum && curRxSum == prevRxSum -> Unit
+                    else -> {
+                        val elapsedMs = now - lastSampleAt
+                        if (elapsedMs >= 500) {
+                            val tx = (curTxSum - prevTxSum) * 1000 / elapsedMs
+                            val rx = (curRxSum - prevRxSum) * 1000 / elapsedMs
+                            _txRate.value = humanFileSize(tx) + "/s"
+                            _rxRate.value = humanFileSize(rx) + "/s"
+                            _txHistory.value = (_txHistory.value + tx).takeLast(60)
+                            _rxHistory.value = (_rxHistory.value + rx).takeLast(60)
+                            prevTxSum = curTxSum
+                            prevRxSum = curRxSum
+                            lastSampleAt = now
+                        }
+                    }
                 }
-                prevTxSum = curTxSum
-                prevRxSum = curRxSum
             }
         }
     }

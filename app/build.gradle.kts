@@ -20,8 +20,8 @@ android {
         applicationId = "top.easytier.miuix"
         minSdk = 32
         targetSdk = 37
-        versionCode = 10
-        versionName = "1.1.8"
+        versionCode = 11
+        versionName = "1.2.0"
     }
 
     buildTypes {
@@ -55,10 +55,10 @@ android {
 
 dependencies {
     // miuix
-    implementation("top.yukonga.miuix.kmp:miuix-ui:0.9.1")
-    implementation("top.yukonga.miuix.kmp:miuix-preference:0.9.1")
-    implementation("top.yukonga.miuix.kmp:miuix-icons:0.9.1")
-    implementation("top.yukonga.miuix.kmp:miuix-blur:0.9.1")
+    implementation("top.yukonga.miuix.kmp:miuix-ui:0.9.3")
+    implementation("top.yukonga.miuix.kmp:miuix-preference:0.9.3")
+    implementation("top.yukonga.miuix.kmp:miuix-icons:0.9.3")
+    implementation("top.yukonga.miuix.kmp:miuix-blur:0.9.3")
 
     // Compose BOM
     implementation(platform("androidx.compose:compose-bom:2025.05.00"))
@@ -91,7 +91,7 @@ dependencies {
     // Core
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
-    implementation("org.jetbrains.androidx.navigationevent:navigationevent-compose:1.1.0")
+    implementation("androidx.navigationevent:navigationevent-compose:1.1.2")
 
     // MaterialKolor for dynamic color scheme
     implementation("com.materialkolor:material-color-utilities:4.1.1")

@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<!-- miuix-blur 0.9.2+ 声明 minSdk 33，但其着色器路径带 isRuntimeShaderSupported 守卫，
+     低版本自动降级为无模糊渲染，故 override 以保留 Android 12L 支持 -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-sdk tools:overrideLibrary="top.yukonga.miuix.kmp.blur" />
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />

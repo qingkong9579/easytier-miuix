@@ -11,7 +11,8 @@ interface NetworkRepository {
     fun getAllNetworkInstances(): Flow<List<NetworkInstance>>
     suspend fun loadConfigs(): List<NetworkConfig>
     suspend fun saveConfigs(configs: List<NetworkConfig>)
-    suspend fun runNetworkInstance(config: NetworkConfig)
+    /** 启动网络实例，返回 null 表示成功，否则为错误信息 */
+    suspend fun runNetworkInstance(config: NetworkConfig): String?
     suspend fun stopNetworkInstance(instanceId: String)
     suspend fun deleteNetworkInstance(instanceId: String)
     suspend fun collectNetworkInfo(instanceId: String): NetworkInstance?

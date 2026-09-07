@@ -25,30 +25,21 @@ class NetworkListViewModel @Inject constructor(
     private val _configs = MutableStateFlow<List<NetworkConfig>>(emptyList())
     val configs: StateFlow<List<NetworkConfig>> = _configs.asStateFlow()
 
-    private val _selectedInstanceId = MutableStateFlow<String?>(null)
-    val selectedInstanceId: StateFlow<String?> = _selectedInstanceId.asStateFlow()
-
     init {
         viewModelScope.launch {
             _configs.value = repository.loadConfigs()
         }
     }
 
-    fun selectNetwork(instanceId: String) {
-        _selectedInstanceId.value = instanceId
-    }
-
-    fun refreshConfigs() {
+    fun refreshConfigs(onComplete: (() -> Unit)? = null) {
         viewModelScope.launch {
             _configs.value = repository.loadConfigs()
+            onComplete?.invoke()
         }
     }
 
     fun deleteNetwork(instanceId: String) {
         _configs.value = _configs.value.filter { it.instanceId != instanceId }
-        if (_selectedInstanceId.value == instanceId) {
-            _selectedInstanceId.value = _configs.value.firstOrNull()?.instanceId
-        }
         viewModelScope.launch {
             repository.saveConfigs(_configs.value)
             repository.deleteNetworkInstance(instanceId)

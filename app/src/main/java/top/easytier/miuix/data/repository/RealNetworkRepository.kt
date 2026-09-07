@@ -4,11 +4,18 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import top.easytier.miuix.data.model.toJSON
@@ -32,6 +39,7 @@ import top.easytier.miuix.data.model.TunnelInfo
 import top.easytier.miuix.data.model.Url
 import com.easytier.jni.EasyTierJNI
 import top.easytier.miuix.jni.EasyTierVpnService
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -44,6 +52,8 @@ class RealNetworkRepository @Inject constructor(
         private const val TAG = "RealNetworkRepository"
         private const val PREFS_NAME = "easytier_state"
         private const val KEY_LAST_INSTANCE = "last_instance_id"
+        private const val KEY_CONFIG_SERVER_URL = "config_server_url"
+        private const val KEY_CONFIG_SERVER_MACHINE_ID = "config_server_machine_id"
     }
 
     val isNativeReady: Boolean get() = EasyTierJNI.isNativeLoaded
@@ -66,6 +76,82 @@ class RealNetworkRepository @Inject constructor(
         return configs.firstOrNull { it.instanceId == lastId } ?: configs.firstOrNull()
     }
 
+    // ---------- 配置服务器客户端 ----------
+
+    private val repoScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val _configServerConnected = MutableStateFlow(false)
+
+    /** 配置服务器客户端是否已连接（未启用时为 false） */
+    val configServerConnected: StateFlow<Boolean> = _configServerConnected.asStateFlow()
+
+    @Volatile
+    private var configServerWatchJob: Job? = null
+
+    /** 当前已保存的配置服务器 URL，未配置返回 null */
+    fun getConfigServerUrl(): String? = statePrefs.getString(KEY_CONFIG_SERVER_URL, null)
+
+    /**
+     * 连接配置服务器。远程配置由核心在 FFI 层直接应用/删除，
+     * 回调事件仅用于日志与状态刷新。返回 null 表示启动成功，否则为错误信息。
+     */
+    fun connectConfigServer(url: String): String? {
+        val machineId = getOrCreateConfigServerMachineId()
+        val result = try {
+            EasyTierJNI.startConfigServerClient(
+                url,
+                null,
+                machineId,
+                false,
+            ) { eventJson ->
+                Log.i(TAG, "ConfigServer event: $eventJson")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start config server client", e)
+            e.message
+        }
+        if (result != 0) {
+            return EasyTierJNI.getLastError() ?: "start failed ($result)"
+        }
+        statePrefs.edit().putString(KEY_CONFIG_SERVER_URL, url).apply()
+        watchConfigServerConnection()
+        return null
+    }
+
+    /** 断开并清除配置服务器配置 */
+    fun disconnectConfigServer() {
+        configServerWatchJob?.cancel()
+        configServerWatchJob = null
+        try {
+            EasyTierJNI.stopConfigServerClient()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to stop config server client", e)
+        }
+        statePrefs.edit().remove(KEY_CONFIG_SERVER_URL).apply()
+        _configServerConnected.value = false
+    }
+
+    private fun getOrCreateConfigServerMachineId(): String {
+        statePrefs.getString(KEY_CONFIG_SERVER_MACHINE_ID, null)?.let { return it }
+        val id = UUID.randomUUID().toString()
+        statePrefs.edit().putString(KEY_CONFIG_SERVER_MACHINE_ID, id).apply()
+        return id
+    }
+
+    private fun watchConfigServerConnection() {
+        configServerWatchJob?.cancel()
+        configServerWatchJob = repoScope.launch {
+            while (isActive) {
+                _configServerConnected.value = try {
+                    EasyTierJNI.isConfigServerClientConnected()
+                } catch (e: Exception) {
+                    Log.w(TAG, "isConfigServerClientConnected failed", e)
+                    false
+                }
+                delay(3000)
+            }
+        }
+    }
+
     private val _mode = MutableStateFlow<Mode>(Mode.Normal())
     private val _clientRunning = MutableStateFlow(false)
     private val _configs = MutableStateFlow<List<NetworkConfig>>(emptyList())
@@ -83,6 +169,11 @@ class RealNetworkRepository @Inject constructor(
 
     init {
         loadConfigsFromFile()
+        // 已配置过配置服务器则自动重连
+        getConfigServerUrl()?.let { url ->
+            val error = connectConfigServer(url)
+            if (error != null) Log.w(TAG, "Auto reconnect config server failed: $error")
+        }
     }
 
     private fun loadConfigsFromFile() {
@@ -176,7 +267,8 @@ class RealNetworkRepository @Inject constructor(
         _instances.value = currentInstances
     }
 
-    override suspend fun runNetworkInstance(config: NetworkConfig) {
+    /** 启动网络实例。返回 null 表示成功，否则为错误信息（供 UI 展示启动结果）。 */
+    override suspend fun runNetworkInstance(config: NetworkConfig): String? {
         Log.d(TAG, "runNetworkInstance called: networkName=${config.networkName}, instanceName=${config.instanceName}, peerUrls=${config.peerUrls}")
         if (!EasyTierJNI.isNativeLoaded) {
             Log.e(TAG, "Native library not loaded")
@@ -188,7 +280,7 @@ class RealNetworkRepository @Inject constructor(
                     errorMsg = "Native library not loaded. Build native libs first.",
                 ))
             }
-            return
+            return "Native library not loaded"
         }
         try {
             // Stop any existing running instance first
@@ -223,6 +315,7 @@ class RealNetworkRepository @Inject constructor(
                     ))
                 }
                 startPolling(config.instanceId, config.instanceName.ifEmpty { config.networkName })
+                return null
             } else {
                 val error = EasyTierJNI.getLastError()
                 Log.e(TAG, "Failed to run instance: $error")
@@ -234,9 +327,11 @@ class RealNetworkRepository @Inject constructor(
                         errorMsg = error ?: "Unknown error",
                     ))
                 }
+                return error ?: "Unknown error"
             }
         } catch (e: Exception) {
             Log.e(TAG, "Exception running instance", e)
+            return e.message ?: "Exception"
         }
     }
 
@@ -679,6 +774,19 @@ class RealNetworkRepository @Inject constructor(
             appendLine("]")
             appendLine("rpc_portal = \"0.0.0.0:0\"")
 
+            // 出口节点（上游字段：顶层 exit_nodes，元素为 IP）
+            val exitNodes = config.exitNodes.filter { it.isNotBlank() }
+            if (exitNodes.isNotEmpty()) {
+                appendLine("exit_nodes = [")
+                exitNodes.forEach { node -> appendLine("    \"$node\",") }
+                appendLine("]")
+            }
+
+            // SOCKS5 代理（上游字段：顶层 socks5_proxy，URL 形式）
+            if (config.enableSocks5) {
+                appendLine("socks5_proxy = \"socks5://0.0.0.0:${config.socks5Port}\"")
+            }
+
             appendLine()
             appendLine("[network_identity]")
             appendLine("network_name = \"${config.networkName}\"")
@@ -711,6 +819,9 @@ class RealNetworkRepository @Inject constructor(
             if (config.disableEncryption) flags.add("enable_encryption = false")
             if (config.disableTcpHolePunching) flags.add("disable_tcp_hole_punching = true")
             if (config.disableUdpHolePunching) flags.add("disable_udp_hole_punching = true")
+            // Magic DNS 在上游 flags 中对应 accept_dns
+            if (config.enableMagicDns) flags.add("accept_dns = true")
+            if (config.enablePrivateMode) flags.add("private_mode = true")
             if (flags.isNotEmpty()) {
                 appendLine()
                 appendLine("[flags]")
