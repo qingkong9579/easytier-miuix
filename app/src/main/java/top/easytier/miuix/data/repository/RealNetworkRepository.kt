@@ -42,9 +42,29 @@ class RealNetworkRepository @Inject constructor(
 
     companion object {
         private const val TAG = "RealNetworkRepository"
+        private const val PREFS_NAME = "easytier_state"
+        private const val KEY_LAST_INSTANCE = "last_instance_id"
     }
 
     val isNativeReady: Boolean get() = EasyTierJNI.isNativeLoaded
+
+    private val statePrefs
+        get() = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    /** 是否有任一网络实例在运行（供快捷磁贴查询） */
+    val isAnyNetworkRunning: Boolean
+        get() = _instances.value.values.any { it.running }
+
+    /** 当前运行实例的 instanceId，无则 null */
+    val runningInstanceId: String?
+        get() = _instances.value.values.firstOrNull { it.running }?.instanceId
+
+    /** 最近一次运行的配置（磁贴一键启动用），从未运行过则回退到第一个配置 */
+    fun getLastRunConfig(): NetworkConfig? {
+        val lastId = statePrefs.getString(KEY_LAST_INSTANCE, null)
+        val configs = _configs.value
+        return configs.firstOrNull { it.instanceId == lastId } ?: configs.firstOrNull()
+    }
 
     private val _mode = MutableStateFlow<Mode>(Mode.Normal())
     private val _clientRunning = MutableStateFlow(false)
@@ -194,6 +214,7 @@ class RealNetworkRepository @Inject constructor(
             if (result == 0) {
                 _clientRunning.value = true
                 _runningInstanceId = config.instanceName.ifEmpty { config.networkName }
+                statePrefs.edit().putString(KEY_LAST_INSTANCE, config.instanceId).apply()
                 _instances.value = _instances.value.toMutableMap().apply {
                     put(config.instanceId, NetworkInstance(
                         instanceId = config.instanceId,
@@ -222,8 +243,14 @@ class RealNetworkRepository @Inject constructor(
     override suspend fun stopNetworkInstance(instanceId: String) {
         try {
             _clientRunning.value = false
-            // Stop EasyTier first so it can gracefully release the TUN fd
-            EasyTierJNI.stopAllInstances()
+            // Stop EasyTier first so it can gracefully release the TUN fd.
+            // 优先用上游新增的 deleteNetworkInstance 精确停止本实例，不影响其他实例
+            val runningName = _runningInstanceId
+            if (runningName != null) {
+                EasyTierJNI.deleteInstance(runningName)
+            } else {
+                EasyTierJNI.stopAllInstances()
+            }
             // Small delay to let EasyTier cleanup complete
             kotlinx.coroutines.delay(500)
             stopVpnService()
@@ -351,7 +378,7 @@ class RealNetworkRepository @Inject constructor(
                 putStringArrayListExtra("proxy_cidrs", ArrayList(proxyCidrs))
                 putExtra("instance_name", _runningInstanceId ?: return)
             }
-            context.startService(vpnIntent)
+            androidx.core.content.ContextCompat.startForegroundService(context, vpnIntent)
             Log.i(TAG, "VPN service started - IPv4: $ipv4")
         } catch (e: Exception) {
             Log.e(TAG, "Error starting VPN service", e)
@@ -370,10 +397,8 @@ class RealNetworkRepository @Inject constructor(
 
     private fun stopVpnService() {
         try {
-            val vpnIntent = Intent(context, EasyTierVpnService::class.java).apply {
-                putExtra("stop_vpn", true)
-            }
-            context.startService(vpnIntent)
+            // stopService 不受后台启动限制，磁贴场景（应用退后台）也能安全调用
+            context.stopService(Intent(context, EasyTierVpnService::class.java))
         } catch (e: Exception) {
             Log.e(TAG, "Error stopping VPN service", e)
         }
