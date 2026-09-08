@@ -420,7 +420,27 @@ class RealNetworkRepository @Inject constructor(
      * 避免 TileService 被系统回收时取消执行中的启停（对齐上游 #2511 的教训）。
      */
     fun startNetworkInstanceAsync(config: NetworkConfig) {
-        repoScope.launch { runNetworkInstance(config) }
+        // 磁贴/后台启动：立即拉起前台服务占住进程——核心启动期间进程无任何系统可见组件，
+        // 会被系统回收，导致轮询线程死亡、VPN 永远等不到参数
+        try {
+            androidx.core.content.ContextCompat.startForegroundService(
+                context,
+                Intent(context, EasyTierVpnService::class.java).apply {
+                    putExtra(EasyTierVpnService.EXTRA_HOLD, true)
+                    putExtra("instance_name", config.instanceName.ifEmpty { config.networkName })
+                }
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "Hold service start failed", e)
+        }
+        repoScope.launch {
+            val error = runNetworkInstance(config)
+            if (error != null) {
+                // 启动失败：释放 hold 前台服务，磁贴/界面随之回到停止态
+                Log.w(TAG, "startNetworkInstanceAsync failed: $error")
+                stopVpnService()
+            }
+        }
     }
 
     fun stopNetworkInstanceAsync(instanceId: String) {

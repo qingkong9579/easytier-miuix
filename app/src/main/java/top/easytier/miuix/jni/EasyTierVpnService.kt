@@ -26,6 +26,7 @@ class EasyTierVpnService : VpnService() {
         private const val TAG = "EasyTierVpnService"
         private const val CHANNEL_ID = "easytier_vpn"
         private const val NOTIFICATION_ID = 1001
+        const val EXTRA_HOLD = "hold_vpn"
 
         /**
          * 服务存活标志（对齐上游 TauriVpnService.self）：
@@ -53,6 +54,15 @@ class EasyTierVpnService : VpnService() {
             Log.i(TAG, "Stop command received, shutting down VPN")
             cleanup()
             stopSelf()
+            return START_NOT_STICKY
+        }
+
+        // Hold 模式：磁贴/后台启动时先占住前台进程（核心启动期间进程无系统可见组件，
+        // 会被立即回收导致 VPN 永远起不来），待仓库层以真实参数再次启动后建立 TUN
+        if (intent?.getBooleanExtra(EXTRA_HOLD, false) == true && !isRunning) {
+            instanceName = intent?.getStringExtra("instance_name")
+            Log.i(TAG, "Hold mode: protecting process while instance starts")
+            updateForegroundNotification(getString(R.string.config_starting))
             return START_NOT_STICKY
         }
 
