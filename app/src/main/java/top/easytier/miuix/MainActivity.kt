@@ -19,8 +19,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.core.os.LocaleListCompat
+import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 import top.easytier.miuix.data.repository.RealNetworkRepository
+import top.easytier.miuix.jni.EasyTierTileService
 import top.easytier.miuix.ui.theme.AppLanguage
 import top.easytier.miuix.ui.theme.AppSettings
 import top.easytier.miuix.ui.theme.AppTheme
@@ -32,6 +35,9 @@ import javax.inject.Inject
 class MainActivity : AppCompatActivity() {
 
     @Inject lateinit var repository: RealNetworkRepository
+
+    /** 磁贴请求：打开创建网络页 */
+    private var pendingCreateNetwork by androidx.compose.runtime.mutableStateOf(false)
 
     private val prefs: SharedPreferences by lazy {
         getSharedPreferences("app_settings", MODE_PRIVATE)
@@ -69,7 +75,48 @@ class MainActivity : AppCompatActivity() {
                 vpnPermissionFlow = repository.vpnPermissionNeeded,
                 vpnLauncher = vpnPermissionLauncher,
                 networkRunning = instances.any { it.running },
+                openCreateNetwork = pendingCreateNetwork,
+                onConsumedOpenCreateNetwork = { pendingCreateNetwork = false },
             )
+        }
+
+        consumeTileAction()
+        handleNavigateExtra(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        consumeTileAction()
+        handleNavigateExtra(intent)
+    }
+
+    private fun handleNavigateExtra(intent: Intent?) {
+        if (intent?.getStringExtra(EasyTierTileService.EXTRA_NAVIGATE_TO) ==
+            EasyTierTileService.NAVIGATE_CREATE_NETWORK
+        ) {
+            pendingCreateNetwork = true
+        }
+    }
+
+    /**
+     * 消费磁贴的待处理动作（对齐上游：冷启动点击不丢失）。
+     * 目前仅处理 start：主界面就绪且已授权时自动启动最近使用的网络。
+     */
+    private fun consumeTileAction() {
+        when (EasyTierTileService.consumePendingAction(this)) {
+            EasyTierTileService.ACTION_START -> {
+                if (VpnService.prepare(this) != null) return // 授权后再由用户手动启动
+                val config = repository.getLastRunConfig()
+                if (config == null) {
+                    // 无任何配置：直接进入创建网络页
+                    pendingCreateNetwork = true
+                    return
+                }
+                lifecycleScope.launch {
+                    repository.runNetworkInstance(config)
+                }
+            }
+            else -> Unit // stop 无需界面参与（进程死亡 VPN 必已停止）
         }
     }
 
@@ -102,6 +149,8 @@ fun MainContent(
         kotlinx.coroutines.flow.MutableStateFlow(null),
     vpnLauncher: androidx.activity.result.ActivityResultLauncher<Intent>? = null,
     networkRunning: Boolean = false,
+    openCreateNetwork: Boolean = false,
+    onConsumedOpenCreateNetwork: () -> Unit = {},
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val activity = context as? ComponentActivity
@@ -131,6 +180,8 @@ fun MainContent(
         AppNavigation(
             appSettings = appSettings,
             networkRunning = networkRunning,
+            openCreateNetwork = openCreateNetwork,
+            onConsumedOpenCreateNetwork = onConsumedOpenCreateNetwork,
             onSettingsChange = { newSettings ->
                 val oldLanguage = appSettings.language
                 appSettings = newSettings

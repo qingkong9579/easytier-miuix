@@ -23,6 +23,7 @@ import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -84,11 +85,20 @@ fun AppNavigation(
     onSettingsChange: (AppSettings) -> Unit = {},
     onExitApp: () -> Unit = {},
     networkRunning: Boolean = false,
+    openCreateNetwork: Boolean = false,
+    onConsumedOpenCreateNetwork: () -> Unit = {},
 ) {
     // Provide NavigationEventDispatcher for miuix OverlayDialog/OverlayDropdown
     val owner = rememberNavigationEventDispatcherOwner(parent = null)
     CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides owner) {
-        AppNavigationContent(appSettings, onSettingsChange, onExitApp, networkRunning)
+        AppNavigationContent(
+            appSettings = appSettings,
+            onSettingsChange = onSettingsChange,
+            onExitApp = onExitApp,
+            networkRunning = networkRunning,
+            openCreateNetwork = openCreateNetwork,
+            onConsumedOpenCreateNetwork = onConsumedOpenCreateNetwork,
+        )
     }
 }
 
@@ -98,10 +108,21 @@ private fun AppNavigationContent(
     onSettingsChange: (AppSettings) -> Unit,
     onExitApp: () -> Unit,
     networkRunning: Boolean,
+    openCreateNetwork: Boolean = false,
+    onConsumedOpenCreateNetwork: () -> Unit = {},
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var editingInstanceId by rememberSaveable { mutableStateOf<String?>(null) }
     var showThemeSettings by rememberSaveable { mutableStateOf(false) }
+
+    // 磁贴等外部入口请求：直接打开创建网络页（新配置）
+    LaunchedEffect(openCreateNetwork) {
+        if (openCreateNetwork) {
+            editingInstanceId = UUID.randomUUID().toString()
+            selectedTab = 0
+            onConsumedOpenCreateNetwork()
+        }
+    }
 
     // 各 Tab 的滚动状态：提升到此处跨 Tab 切换保存/恢复
     val networksListState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }

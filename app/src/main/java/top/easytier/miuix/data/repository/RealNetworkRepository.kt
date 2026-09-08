@@ -38,6 +38,7 @@ import top.easytier.miuix.data.model.StunInfo
 import top.easytier.miuix.data.model.TunnelInfo
 import top.easytier.miuix.data.model.Url
 import com.easytier.jni.EasyTierJNI
+import top.easytier.miuix.jni.EasyTierTileService
 import top.easytier.miuix.jni.EasyTierVpnService
 import java.util.UUID
 import javax.inject.Inject
@@ -54,6 +55,7 @@ class RealNetworkRepository @Inject constructor(
         private const val KEY_LAST_INSTANCE = "last_instance_id"
         private const val KEY_CONFIG_SERVER_URL = "config_server_url"
         private const val KEY_CONFIG_SERVER_MACHINE_ID = "config_server_machine_id"
+        private const val KEY_TILE_RUNNING = "tile_running"
     }
 
     val isNativeReady: Boolean get() = EasyTierJNI.isNativeLoaded
@@ -69,11 +71,13 @@ class RealNetworkRepository @Inject constructor(
     val runningInstanceId: String?
         get() = _instances.value.values.firstOrNull { it.running }?.instanceId
 
-    /** 最近一次运行的配置（磁贴一键启动用），从未运行过则回退到第一个配置 */
+    /** 磁贴等外部入口使用的启动配置：
+     *  优先取上一次运行的配置；无运行记录时使用最后创建的配置 */
     fun getLastRunConfig(): NetworkConfig? {
         val lastId = statePrefs.getString(KEY_LAST_INSTANCE, null)
         val configs = _configs.value
-        return configs.firstOrNull { it.instanceId == lastId } ?: configs.firstOrNull()
+        return configs.firstOrNull { it.instanceId == lastId }
+            ?: configs.lastOrNull()
     }
 
     // ---------- 配置服务器客户端 ----------
@@ -167,8 +171,20 @@ class RealNetworkRepository @Inject constructor(
     private val configsFile: File
         get() = File(context.filesDir, "network_configs.json")
 
+    /** 同步磁贴状态：实例运行态变化时落盘（磁贴读取同一份状态）并请求刷新磁贴 */
+    private fun setTileRunning(running: Boolean) {
+        statePrefs.edit().putBoolean(KEY_TILE_RUNNING, running).commit()
+        EasyTierTileService.requestStateUpdate(context)
+    }
+
+    /** 磁贴读取的持久化运行状态（与应用内实例状态同源） */
+    val isTileRunning: Boolean
+        get() = statePrefs.getBoolean(KEY_TILE_RUNNING, false)
+
     init {
         loadConfigsFromFile()
+        // 核心随进程消亡：进程重启后持久化的运行状态必然已失效
+        setTileRunning(false)
         // 已配置过配置服务器则自动重连
         getConfigServerUrl()?.let { url ->
             val error = connectConfigServer(url)
@@ -315,6 +331,7 @@ class RealNetworkRepository @Inject constructor(
                     ))
                 }
                 startPolling(config.instanceId, config.instanceName.ifEmpty { config.networkName })
+                setTileRunning(true)
                 return null
             } else {
                 val error = EasyTierJNI.getLastError()
@@ -327,6 +344,7 @@ class RealNetworkRepository @Inject constructor(
                         errorMsg = error ?: "Unknown error",
                     ))
                 }
+                setTileRunning(false)
                 return error ?: "Unknown error"
             }
         } catch (e: Exception) {
@@ -341,11 +359,14 @@ class RealNetworkRepository @Inject constructor(
             // Stop EasyTier first so it can gracefully release the TUN fd.
             // 优先用上游新增的 deleteNetworkInstance 精确停止本实例，不影响其他实例
             val runningName = _runningInstanceId
+            Log.i(TAG, "stopNetworkInstance: runningName=$runningName")
             if (runningName != null) {
-                EasyTierJNI.deleteInstance(runningName)
+                val rc = EasyTierJNI.deleteInstance(runningName)
+                Log.i(TAG, "deleteInstance($runningName) -> $rc, error=${EasyTierJNI.getLastError()}")
             } else {
                 EasyTierJNI.stopAllInstances()
             }
+            setTileRunning(false)
             // Small delay to let EasyTier cleanup complete
             kotlinx.coroutines.delay(500)
             stopVpnService()
@@ -394,6 +415,19 @@ class RealNetworkRepository @Inject constructor(
 
     override fun isClientRunning(): Flow<Boolean> = _clientRunning.asStateFlow()
 
+    /**
+     * 磁贴等外部入口的异步启停入口：跑在与进程同寿的 repoScope 上，
+     * 避免 TileService 被系统回收时取消执行中的启停（对齐上游 #2511 的教训）。
+     */
+    fun startNetworkInstanceAsync(config: NetworkConfig) {
+        repoScope.launch { runNetworkInstance(config) }
+    }
+
+    fun stopNetworkInstanceAsync(instanceId: String) {
+        Log.i(TAG, "stopNetworkInstanceAsync: $instanceId")
+        repoScope.launch { stopNetworkInstance(instanceId) }
+    }
+
     private fun startPolling(instanceId: String, instanceName: String) {
         _activePollingId = instanceId
         Thread {
@@ -413,6 +447,14 @@ class RealNetworkRepository @Inject constructor(
                             }
                             // Check if we got a virtual IP and should start VPN
                             checkAndStartVpn(instance.copy(instanceId = instanceId))
+                        } else {
+                            // 核心中实例已消失（异常退出）：app 与磁贴同步为停止态
+                            Log.w(TAG, "Poll: instance disappeared, marking stopped")
+                            _clientRunning.value = false
+                            setTileRunning(false)
+                            _instances.value = _instances.value.toMutableMap().apply {
+                                this[instanceId]?.let { put(instanceId, it.copy(running = false, detail = null)) }
+                            }
                         }
                     }
                 } catch (e: Exception) {
@@ -492,7 +534,14 @@ class RealNetworkRepository @Inject constructor(
 
     private fun stopVpnService() {
         try {
-            // stopService 不受后台启动限制，磁贴场景（应用退后台）也能安全调用
+            // 先投递停止指令：服务自行 cleanup 并 stopSelf
+            // （进程持有 FGS 时不受后台启动限制；SystemUI 持有 binding 时 stopService 无法销毁服务）
+            context.startService(
+                Intent(context, EasyTierVpnService::class.java).apply {
+                    putExtra("stop_vpn", true)
+                }
+            )
+            // 双保险：无绑定连接时立即销毁
             context.stopService(Intent(context, EasyTierVpnService::class.java))
         } catch (e: Exception) {
             Log.e(TAG, "Error stopping VPN service", e)

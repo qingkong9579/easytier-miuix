@@ -26,11 +26,21 @@ class EasyTierVpnService : VpnService() {
         private const val TAG = "EasyTierVpnService"
         private const val CHANNEL_ID = "easytier_vpn"
         private const val NOTIFICATION_ID = 1001
+
+        /**
+         * 服务存活标志（对齐上游 TauriVpnService.self）：
+         * 磁贴等外部入口用它判定 VPN 是否在运行，进程死亡即视为停止。
+         */
+        @Volatile
+        var isServiceRunning = false
+            private set
     }
 
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "VPN Service created")
+        isServiceRunning = true
+        EasyTierTileService.requestStateUpdate(this)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -187,5 +197,7 @@ class EasyTierVpnService : VpnService() {
         super.onDestroy()
         Log.d(TAG, "VPN Service destroyed")
         cleanup()
+        isServiceRunning = false
+        EasyTierTileService.requestStateUpdate(this)
     }
 }

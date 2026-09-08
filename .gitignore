@@ -19,3 +19,4 @@ easytier-build/
 .claude/
 .kotlin/
 test-screenshots/ 
+"app/src/debug/jniLibs/"  
