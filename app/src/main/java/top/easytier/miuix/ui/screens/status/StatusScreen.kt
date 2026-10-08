@@ -58,6 +58,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import android.widget.Toast
 import org.json.JSONObject
 import top.easytier.miuix.R
+import top.easytier.miuix.data.model.EventLevel
+import top.easytier.miuix.data.model.NatType
 import top.easytier.miuix.data.model.PeerRoutePair
 import top.easytier.miuix.ui.components.FilterChip
 import top.easytier.miuix.ui.components.PressableLabel
@@ -363,9 +365,11 @@ private fun EventsCard(
     onClear: () -> Unit,
     onCopy: (String) -> Unit,
 ) {
+    // timestamp 为 0 代表时间解析失败：这类事件不能被「清空」永久吞掉，
+    // 否则列表会进入无法回退的空状态（连清空按钮都会一起消失）。
     val visibleEvents = events.asSequence()
-        .filter { it.timestamp >= clearedAt }
-        .filter { !warnOnly || detectEventSeverity(it) != EventSeverity.INFO }
+        .filter { it.timestamp == 0L || it.timestamp >= clearedAt }
+        .filter { !warnOnly || detectEventSeverity(it) != EventLevel.INFO }
         .toList()
     val displayEvents = visibleEvents.take(if (showAllEvents) 20 else 5)
 
@@ -489,11 +493,16 @@ private fun lossColor(rate: Float): Color = when {
 private fun PeerCard(pair: PeerRoutePair, onLongPressCopy: (String) -> Unit) {
     val route = pair.route
     val peer = pair.peer
-    val conn = peer?.conns?.firstOrNull()
+    // 上游会用 default_conn_id 指定主连接；多路径（UDP + 中继）并存时
+    // 直接取 firstOrNull 可能拿到非主连接，导致延迟/丢包/协议都不是用户以为的那条。
+    val conn = peer?.primaryConn
     val stats = conn?.stats
     var expanded by remember { mutableStateOf(false) }
-    val latencyUs = stats?.latencyUs ?: -1
-    val lossRate = conn?.lossRate ?: -1f
+    // 中继对端常常没有 conn stats，此时退回端到端的 path_latency，避免永远显示 "- ms"
+    val latencyUs = stats?.latencyUs?.takeIf { it > 0 } ?: route.pathLatencyUs
+    // loss_rate 缺键就等于 0（pbjson 省略 0.0），只有真的拿到 stats 时这个数字才有意义，
+    // 否则会把「没有数据」显示成「0.0%」。
+    val lossRate: Float? = if (stats != null) conn?.lossRate else null
     val dotColor = if (latencyUs > 0) latencyColor(latencyUs) else MiuixTheme.colorScheme.onSurfaceVariantSummary
 
     Card(
@@ -569,9 +578,10 @@ private fun PeerCard(pair: PeerRoutePair, onLongPressCopy: (String) -> Unit) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.status_loss), style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceVariantSummary, fontSize = 11.sp)
                     Text(
-                        text = if (lossRate >= 0f) "%.1f%%".format(lossRate * 100) else "-",
+                        text = lossRate?.let { "%.1f%%".format(it * 100) } ?: "-",
                         style = MiuixTheme.textStyles.body2,
-                        color = if (lossRate > 0f) lossColor(lossRate) else MiuixTheme.colorScheme.onSurface
+                        color = lossRate?.takeIf { it > 0f }?.let { lossColor(it) }
+                            ?: MiuixTheme.colorScheme.onSurface
                     )
                 }
                 Spacer(Modifier.width(8.dp))
@@ -674,24 +684,28 @@ private fun formatBytes(bytes: Long): String {
     return "%.1f GB".format(gb)
 }
 
+/**
+ * NAT 类型标签。
+ *
+ * 取值来自上游 `common.proto` 的 NatType 枚举（JSON 里是枚举名字符串），
+ * 不再是「0..3 的序号」那套早已不存在的映射。
+ */
 @Composable
-private fun natTypeName(natType: Int): String = when (natType) {
-    0 -> stringResource(R.string.status_nat_unknown)
-    1 -> stringResource(R.string.status_nat_endpoint_independent)
-    2 -> stringResource(R.string.status_nat_endpoint_dependent)
-    3 -> stringResource(R.string.status_nat_symmetric)
-    else -> stringResource(R.string.status_nat_type_format, natType)
+private fun natTypeName(natType: NatType): String = when (natType) {
+    NatType.Unknown -> stringResource(R.string.status_nat_unknown)
+    NatType.OpenInternet -> stringResource(R.string.status_nat_open_internet)
+    NatType.NoPat -> stringResource(R.string.status_nat_no_pat)
+    NatType.FullCone -> stringResource(R.string.status_nat_full_cone)
+    NatType.Restricted -> stringResource(R.string.status_nat_restricted)
+    NatType.PortRestricted -> stringResource(R.string.status_nat_port_restricted)
+    NatType.Symmetric -> stringResource(R.string.status_nat_symmetric)
+    NatType.SymUdpFirewall -> stringResource(R.string.status_nat_sym_udp_firewall)
+    NatType.SymmetricEasyInc -> stringResource(R.string.status_nat_sym_easy_inc)
+    NatType.SymmetricEasyDec -> stringResource(R.string.status_nat_sym_easy_dec)
 }
 
-private enum class EventSeverity { INFO, WARN, ERROR }
-
-private fun detectEventSeverity(event: top.easytier.miuix.data.model.EventInfo): EventSeverity {
-    return when (event.level.lowercase()) {
-        "error", "err" -> EventSeverity.ERROR
-        "warn", "warning" -> EventSeverity.WARN
-        else -> EventSeverity.INFO
-    }
-}
+/** 事件级别由解析层从 GlobalCtxEvent 变体名推导（上游从不序列化 level）。 */
+private fun detectEventSeverity(event: top.easytier.miuix.data.model.EventInfo): EventLevel = event.level
 
 /** 常见事件的用户可读标题，未映射的事件回退为原始类型名 */
 private fun eventTitleRes(eventType: String): Int? = when (eventType) {
@@ -714,29 +728,20 @@ private val eventPreferredSummaryFields =
 private fun EventLogItem(event: top.easytier.miuix.data.model.EventInfo, onCopy: (String) -> Unit) {
     val severity = detectEventSeverity(event)
     val severityColor = when (severity) {
-        EventSeverity.ERROR -> MiuixTheme.colorScheme.error
-        EventSeverity.WARN -> Color(0xFFFFA000)
-        EventSeverity.INFO -> MiuixTheme.colorScheme.primary
+        EventLevel.ERROR -> MiuixTheme.colorScheme.error
+        EventLevel.WARN -> Color(0xFFFFA000)
+        EventLevel.INFO -> MiuixTheme.colorScheme.primary
     }
-    val (eventType, displayTime, extraFields) = remember(event.raw) {
+    // 事件类型与时间已由解析层从事件体里取出（事件 JSON 只有 time 与 event 两个键），
+    // 这里只负责把 payload 摊平成可读的键值对。
+    val eventType = event.type
+    val extraFields = remember(event.raw, eventType) {
         try {
-            val cleaned = unescapeJson(event.raw)
-            val obj = JSONObject(cleaned)
-            val metaKeys = setOf("level", "time", "timestamp", "ts", "event")
-            val eventObj = obj.optJSONObject("event")
-            val type = if (eventObj != null) {
-                eventObj.keys().next()
-            } else {
-                obj.keys().asSequence().firstOrNull { it !in metaKeys } ?: ""
-            }
-            val rawTime = unescapeJson(obj.optString("time", obj.optString("timestamp", "")))
-            val shortTime = if (rawTime.length >= 19) rawTime.substring(11, 19) else if (rawTime.length >= 16) rawTime.substring(11, 16) else rawTime
+            val obj = JSONObject(unescapeJson(event.raw))
+            val metaKeys = setOf("time", "timestamp", "ts", "event")
+            val detailObj = obj.optJSONObject("event")?.optJSONObject(eventType)
+                ?: obj.optJSONObject(eventType)
             val pairs = mutableListOf<Pair<String, String>>()
-            val detailObj = if (eventObj != null && type.isNotEmpty()) {
-                eventObj.optJSONObject(type)
-            } else if (type.isNotEmpty()) {
-                obj.optJSONObject(type)
-            } else null
             if (detailObj != null) {
                 detailObj.keys().forEach { key ->
                     val value = unescapeJson(detailObj.optString(key, detailObj.opt(key)?.toString() ?: ""))
@@ -746,7 +751,7 @@ private fun EventLogItem(event: top.easytier.miuix.data.model.EventInfo, onCopy:
                 }
             } else {
                 obj.keys().forEach { key ->
-                    if (key !in metaKeys && key != type && key != "event") {
+                    if (key !in metaKeys && key != eventType) {
                         val value = unescapeJson(obj.optString(key, obj.opt(key)?.toString() ?: ""))
                         if (value.isNotBlank() && value != "null") {
                             pairs.add(key to value)
@@ -754,9 +759,9 @@ private fun EventLogItem(event: top.easytier.miuix.data.model.EventInfo, onCopy:
                     }
                 }
             }
-            Triple(type, shortTime, pairs)
+            pairs
         } catch (_: Exception) {
-            Triple("", "", emptyList<Pair<String, String>>())
+            emptyList<Pair<String, String>>()
         }
     }
     var showJson by remember { mutableStateOf(false) }
@@ -770,9 +775,9 @@ private fun EventLogItem(event: top.easytier.miuix.data.model.EventInfo, onCopy:
             cleaned
         }
     }
-    val timeStr = if (displayTime.isNotEmpty()) displayTime else if (event.timestamp > 0) {
-        val sdf = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
-        sdf.format(java.util.Date(event.timestamp))
+    val timeStr = if (event.timestamp > 0) {
+        java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
+            .format(java.util.Date(event.timestamp))
     } else ""
     // 摘要行：只取可读字段，避免 my_peer_id/conn_id 之类技术值刷屏
     val inlineSummary = extraFields
@@ -805,7 +810,7 @@ private fun EventLogItem(event: top.easytier.miuix.data.model.EventInfo, onCopy:
             // Colored dot
             Dot(color = severityColor)
             // Level badge：大多数事件都是 INFO，仅警告/错误才显示徽标降噪
-            if (severity != EventSeverity.INFO) {
+            if (severity != EventLevel.INFO) {
                 Box(
                     modifier = Modifier
                         .padding(end = 8.dp)
@@ -818,7 +823,7 @@ private fun EventLogItem(event: top.easytier.miuix.data.model.EventInfo, onCopy:
                         .padding(horizontal = 6.dp, vertical = 2.dp),
                 ) {
                     Text(
-                        text = event.level.uppercase(),
+                        text = severity.name,
                         fontSize = 10.sp,
                         color = severityColor,
                     )

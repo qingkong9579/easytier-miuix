@@ -61,9 +61,34 @@ data class Ipv6Addr(
     }
 }
 
+/**
+ * 上游 `common.proto` 的 NatType。
+ *
+ * JSON 侧是**枚举名字符串**（pbjson 的 `serializer.serialize_str(variant)`），
+ * 且值为 `Unknown(0)` 时整个键会被省略 —— 所以「缺键」就等于 Unknown，
+ * 不能像以前那样用 `optInt` 去读。
+ */
+enum class NatType(val wireName: String) {
+    Unknown("Unknown"),
+    OpenInternet("OpenInternet"),
+    NoPat("NoPAT"),
+    FullCone("FullCone"),
+    Restricted("Restricted"),
+    PortRestricted("PortRestricted"),
+    Symmetric("Symmetric"),
+    SymUdpFirewall("SymUdpFirewall"),
+    SymmetricEasyInc("SymmetricEasyInc"),
+    SymmetricEasyDec("SymmetricEasyDec");
+
+    companion object {
+        fun fromWire(value: String?): NatType =
+            entries.firstOrNull { it.wireName.equals(value, ignoreCase = true) } ?: Unknown
+    }
+}
+
 data class StunInfo(
-    val udpNatType: Int = 0,
-    val tcpNatType: Int = 0,
+    val udpNatType: NatType = NatType.Unknown,
+    val tcpNatType: NatType = NatType.Unknown,
     val lastUpdateTime: Long = 0,
 )
 
@@ -93,6 +118,8 @@ data class Route(
     val stunInfo: StunInfo? = null,
     val instId: String = "",
     val version: String = "",
+    /** 端到端路径时延（微秒）；中继对端常常拿不到 conn stats，这是可用的兜底。 */
+    val pathLatencyUs: Long = 0,
 ) {
     /**
      * True when traffic to this peer is relayed through another node (not direct P2P).
@@ -125,12 +152,25 @@ data class PeerConnInfo(
     val tunnel: TunnelInfo? = null,
     val stats: PeerConnStats? = null,
     val lossRate: Float = 0f,
+    /** 加密/认证等级（枚举名，None 时缺键）：PeerVerified / NetworkSecretConfirmed 等。 */
+    val secureAuthLevel: String = "",
+    /** 对端身份类型（枚举名，Admin 时缺键）：Credential / SharedNode。 */
+    val peerIdentityType: String = "",
+    val networkName: String = "",
+    val isClosed: Boolean = false,
 )
 
 data class PeerInfo(
     val peerId: Long = 0,
     val conns: List<PeerConnInfo> = emptyList(),
-)
+    /** 上游指定的主连接；多路径并存时用它挑默认展示的那条。 */
+    val defaultConnId: String = "",
+    val directlyConnectedConns: List<String> = emptyList(),
+) {
+    /** 优先取上游指定的主连接，找不到时退回第一条。 */
+    val primaryConn: PeerConnInfo?
+        get() = conns.firstOrNull { it.connId == defaultConnId } ?: conns.firstOrNull()
+}
 
 data class PeerRoutePair(
     val route: Route = Route(),
@@ -149,10 +189,22 @@ data class NetworkInstanceRunningInfo(
     val errorMsg: String? = null,
 )
 
+enum class EventLevel { INFO, WARN, ERROR }
+
+/**
+ * 一条运行事件。
+ *
+ * 上游 `events` 是 `repeated string`，每个元素是
+ * `{"time":"<RFC3339>","event":{"<GlobalCtxEvent 变体名>":{…}}}`。
+ * 事件里**没有** level / peer_id / timestamp 这些键，等级必须由事件类型推导，
+ * 时间要解析 RFC3339 字符串。
+ */
 data class EventInfo(
-    val level: String = "info",
+    val level: EventLevel = EventLevel.INFO,
+    /** GlobalCtxEvent 变体名，例如 PeerConnAdded / ConnectError。 */
+    val type: String = "",
     val message: String = "",
-    val peerId: Long = 0,
+    /** 事件时间（epoch 毫秒）；解析失败时为 0。 */
     val timestamp: Long = 0,
     val raw: String = "",
 )

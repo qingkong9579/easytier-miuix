@@ -227,7 +227,11 @@ private fun AppNavigationContent(
                 title = when {
                     editingInstanceId != null -> stringResource(R.string.edit_network)
                     showThemeSettings -> stringResource(R.string.settings_theme)
-                    else -> "EasyTier"
+                    // 之前这里无论哪个标签页都硬编码 "EasyTier"，设置页也跟着显示应用名。
+                    // 标题与底部标签保持一致，复用同一批 nav_* 文案。
+                    selectedTab == 1 -> stringResource(R.string.nav_status)
+                    selectedTab == 2 -> stringResource(R.string.nav_settings)
+                    else -> stringResource(R.string.nav_networks)
                 },
                 navigationIcon = topBarBack ?: {},
             )

@@ -27,18 +27,56 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import top.easytier.miuix.R
+import top.easytier.miuix.data.model.CompressionAlgo
+import top.easytier.miuix.data.model.EncryptionAlgorithm
+import top.easytier.miuix.data.model.NetworkConfig
+import top.easytier.miuix.data.model.VpnPortalClient
+import top.easytier.miuix.ui.components.BoolFlag
+import top.easytier.miuix.ui.components.BoolFlagGrid
 import top.easytier.miuix.ui.components.ListenerPicker
 import top.easytier.miuix.ui.components.PortForwardEditor
 import top.easytier.miuix.ui.components.UrlListInput
+import top.easytier.miuix.ui.components.VpnPortalClientEditor
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.preference.ArrowPreference
+import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+
+/**
+ * 一个「配置项 ↔ 模型字段」的映射描述，供 [BoolFlagGrid] 使用。
+ *
+ * 这些开关此前只存在于模型里、从不写进 TOML，等于界面上的空壳；
+ * 用描述表把「渲染」和「读写」绑在一起，新增一项只需加一行。
+ */
+private data class FlagSpec(
+    val key: String,
+    val labelRes: Int,
+    val get: (NetworkConfig) -> Boolean,
+    val set: (NetworkConfig, Boolean) -> NetworkConfig,
+)
+
+/** 之前未接线的旗标：全部对应上游 `[flags]` 里真实存在的键。 */
+private val advancedFlagSpecs = listOf(
+    FlagSpec("p2pOnly", R.string.config_p2p_only, { it.p2pOnly }, { c, v -> c.copy(p2pOnly = v) }),
+    FlagSpec("lazyP2p", R.string.config_lazy_p2p, { it.lazyP2p }, { c, v -> c.copy(lazyP2p = v) }),
+    FlagSpec("needP2p", R.string.config_need_p2p, { it.needP2p }, { c, v -> c.copy(needP2p = v) }),
+    FlagSpec("relayAllPeerRpc", R.string.config_relay_all_peer_rpc, { it.relayAllPeerRpc }, { c, v -> c.copy(relayAllPeerRpc = v) }),
+    FlagSpec("disableKcpInput", R.string.config_disable_kcp_input, { it.disableKcpInput }, { c, v -> c.copy(disableKcpInput = v) }),
+    FlagSpec("enableQuicProxy", R.string.config_enable_quic_proxy, { it.enableQuicProxy }, { c, v -> c.copy(enableQuicProxy = v) }),
+    FlagSpec("disableQuicInput", R.string.config_disable_quic_input, { it.disableQuicInput }, { c, v -> c.copy(disableQuicInput = v) }),
+    FlagSpec("disableUpnp", R.string.config_disable_upnp, { it.disableUpnp }, { c, v -> c.copy(disableUpnp = v) }),
+    FlagSpec("enableUdpBroadcastRelay", R.string.config_udp_broadcast_relay, { it.enableUdpBroadcastRelay }, { c, v -> c.copy(enableUdpBroadcastRelay = v) }),
+    FlagSpec("disableSymHolePunching", R.string.config_disable_sym_hole_punching, { it.disableSymHolePunching }, { c, v -> c.copy(disableSymHolePunching = v) }),
+    FlagSpec("proxyForwardBySystem", R.string.config_proxy_forward_by_system, { it.proxyForwardBySystem }, { c, v -> c.copy(proxyForwardBySystem = v) }),
+    FlagSpec("useSmoltcp", R.string.config_use_smoltcp, { it.useSmoltcp }, { c, v -> c.copy(useSmoltcp = v) }),
+    FlagSpec("bindDevice", R.string.config_bind_device, { it.bindDevice }, { c, v -> c.copy(bindDevice = v) }),
+)
 
 /** 表单全部本地字段快照，用于脏状态检测 */
 private data class ConfigFormState(
@@ -49,17 +87,24 @@ private data class ConfigFormState(
     val dhcp: Boolean,
     val peerUrls: List<String>,
     val listenerUrls: List<String>,
+    val mappedListeners: List<String>,
     val proxyCidrs: List<String>,
     val exitNodes: List<String>,
+    val routes: List<String>,
+    val enableManualRoutes: Boolean,
+    val relayNetworkWhitelist: String,
     val hostname: String,
     val devName: String,
     val mtu: String,
+    val instanceRecvBpsLimit: String,
     val latencyFirst: Boolean,
     val showAdvanced: Boolean,
+    val encryptionAlgorithm: EncryptionAlgorithm,
+    val dataCompressAlgo: CompressionAlgo,
+    val advancedFlags: Map<String, Boolean>,
     val disableIpv6: Boolean,
     val enableKcpProxy: Boolean,
     val disableP2p: Boolean,
-    val noTun: Boolean,
     val enableExitNode: Boolean,
     val multiThread: Boolean,
     val enableMagicDns: Boolean,
@@ -69,8 +114,7 @@ private data class ConfigFormState(
     val disableUdpHolePunching: Boolean,
     val enableVpnPortal: Boolean,
     val vpnPortalListenPort: String,
-    val vpnPortalClientNetworkAddr: String,
-    val vpnPortalClientNetworkLen: String,
+    val vpnPortalClients: List<VpnPortalClient>,
     val enableSocks5: Boolean,
     val socks5Port: String,
 )
@@ -104,21 +148,33 @@ fun ConfigScreen(
     var dhcp by remember(instanceId, loadGeneration) { mutableStateOf(config.dhcp) }
     var peerUrls by remember(instanceId, loadGeneration) { mutableStateOf(config.peerUrls) }
     var listenerUrls by remember(instanceId, loadGeneration) { mutableStateOf(config.listenerUrls) }
+    var mappedListeners by remember(instanceId, loadGeneration) { mutableStateOf(config.mappedListeners) }
     var proxyCidrs by remember(instanceId, loadGeneration) { mutableStateOf(config.proxyCidrs) }
+    var routes by remember(instanceId, loadGeneration) { mutableStateOf(config.routes) }
+    var enableManualRoutes by remember(instanceId, loadGeneration) { mutableStateOf(config.enableManualRoutes) }
+    var enableRelayWhitelist by remember(instanceId, loadGeneration) { mutableStateOf(config.enableRelayNetworkWhitelist) }
+    var relayWhitelist by remember(instanceId, loadGeneration) { mutableStateOf(config.relayNetworkWhitelist) }
     var hostname by remember(instanceId, loadGeneration) { mutableStateOf(config.hostname ?: "") }
     var devName by remember(instanceId, loadGeneration) { mutableStateOf(config.devName) }
     var mtu by remember(instanceId, loadGeneration) { mutableStateOf(config.mtu?.toString() ?: "") }
+    var recvBpsLimit by remember(instanceId, loadGeneration) { mutableStateOf(config.instanceRecvBpsLimit?.toString() ?: "") }
     var latencyFirst by remember(instanceId, loadGeneration) { mutableStateOf(config.latencyFirst) }
     var showAdvanced by remember(instanceId, loadGeneration) { mutableStateOf(config.advancedSettings) }
+    var encryptionAlgorithm by remember(instanceId, loadGeneration) { mutableStateOf(config.encryptionAlgorithm) }
+    var dataCompressAlgo by remember(instanceId, loadGeneration) { mutableStateOf(config.dataCompressAlgo) }
     var showPortForwards by remember { mutableStateOf(false) }
     var showVpnPortal by remember { mutableStateOf(false) }
     var showSocks5 by remember { mutableStateOf(false) }
+
+    // 之前只存在于模型、从不写入 TOML 的旗标，现在统一由 BoolFlagGrid 驱动
+    var advancedFlags by remember(instanceId, loadGeneration) {
+        mutableStateOf(advancedFlagSpecs.associate { it.key to it.get(config) })
+    }
 
     // Boolean flags
     var disableIpv6 by remember(instanceId, loadGeneration) { mutableStateOf(config.disableIpv6) }
     var enableKcpProxy by remember(instanceId, loadGeneration) { mutableStateOf(config.enableKcpProxy) }
     var disableP2p by remember(instanceId, loadGeneration) { mutableStateOf(config.disableP2p) }
-    var noTun by remember(instanceId, loadGeneration) { mutableStateOf(config.noTun) }
     var enableExitNode by remember(instanceId, loadGeneration) { mutableStateOf(config.enableExitNode) }
     var multiThread by remember(instanceId, loadGeneration) { mutableStateOf(config.multiThread) }
     var enableMagicDns by remember(instanceId, loadGeneration) { mutableStateOf(config.enableMagicDns) }
@@ -130,8 +186,7 @@ fun ConfigScreen(
     // VPN Portal
     var enableVpnPortal by remember(instanceId, loadGeneration) { mutableStateOf(config.enableVpnPortal) }
     var vpnPortalListenPort by remember(instanceId, loadGeneration) { mutableStateOf(config.vpnPortalListenPort.toString()) }
-    var vpnPortalClientNetworkAddr by remember(instanceId, loadGeneration) { mutableStateOf(config.vpnPortalClientNetworkAddr) }
-    var vpnPortalClientNetworkLen by remember(instanceId, loadGeneration) { mutableStateOf(config.vpnPortalClientNetworkLen.toString()) }
+    var vpnPortalClients by remember(instanceId, loadGeneration) { mutableStateOf(config.vpnPortalClients) }
 
     // SOCKS5
     var enableSocks5 by remember(instanceId, loadGeneration) { mutableStateOf(config.enableSocks5) }
@@ -150,17 +205,24 @@ fun ConfigScreen(
         dhcp = dhcp,
         peerUrls = peerUrls,
         listenerUrls = listenerUrls,
+        mappedListeners = mappedListeners,
         proxyCidrs = proxyCidrs,
         exitNodes = exitNodes,
+        routes = routes,
+        enableManualRoutes = enableManualRoutes,
+        relayNetworkWhitelist = relayWhitelist,
         hostname = hostname,
         devName = devName,
         mtu = mtu,
+        instanceRecvBpsLimit = recvBpsLimit,
         latencyFirst = latencyFirst,
         showAdvanced = showAdvanced,
+        encryptionAlgorithm = encryptionAlgorithm,
+        dataCompressAlgo = dataCompressAlgo,
+        advancedFlags = advancedFlags,
         disableIpv6 = disableIpv6,
         enableKcpProxy = enableKcpProxy,
         disableP2p = disableP2p,
-        noTun = noTun,
         enableExitNode = enableExitNode,
         multiThread = multiThread,
         enableMagicDns = enableMagicDns,
@@ -170,8 +232,7 @@ fun ConfigScreen(
         disableUdpHolePunching = disableUdpHolePunching,
         enableVpnPortal = enableVpnPortal,
         vpnPortalListenPort = vpnPortalListenPort,
-        vpnPortalClientNetworkAddr = vpnPortalClientNetworkAddr,
-        vpnPortalClientNetworkLen = vpnPortalClientNetworkLen,
+        vpnPortalClients = vpnPortalClients,
         enableSocks5 = enableSocks5,
         socks5Port = socks5Port,
     )
@@ -182,42 +243,66 @@ fun ConfigScreen(
 
     // Sync form state back to viewModel config
     fun syncToConfig() {
-        viewModel.updateConfig { c -> c.copy(
-            networkName = networkName,
-            networkSecret = networkSecret,
-            instanceName = instanceName,
-            virtualIpv4 = virtualIpv4,
-            dhcp = dhcp,
-            peerUrls = peerUrls,
-            listenerUrls = listenerUrls,
-            proxyCidrs = proxyCidrs,
-            hostname = hostname.ifEmpty { null },
-            devName = devName,
-            mtu = mtu.toIntOrNull(),
-            latencyFirst = latencyFirst,
-            disableIpv6 = disableIpv6,
-            enableKcpProxy = enableKcpProxy,
-            disableP2p = disableP2p,
-            noTun = noTun,
-            enableExitNode = enableExitNode,
-            multiThread = multiThread,
-            enableMagicDns = enableMagicDns,
-            enablePrivateMode = enablePrivateMode,
-            disableEncryption = disableEncryption,
-            disableTcpHolePunching = disableTcpHolePunching,
-            disableUdpHolePunching = disableUdpHolePunching,
-            enableVpnPortal = enableVpnPortal,
-            vpnPortalListenPort = vpnPortalListenPort.toIntOrNull() ?: 22022,
-            vpnPortalClientNetworkAddr = vpnPortalClientNetworkAddr,
-            vpnPortalClientNetworkLen = vpnPortalClientNetworkLen.toIntOrNull() ?: 24,
-            enableSocks5 = enableSocks5,
-            socks5Port = socks5Port.toIntOrNull() ?: 1080,
-            exitNodes = exitNodes,
-        ) }
+        viewModel.updateConfig { c ->
+            // 先把 BoolFlagGrid 驱动的旗标逐项落回模型
+            var next = c
+            advancedFlagSpecs.forEach { spec ->
+                next = spec.set(next, advancedFlags[spec.key] ?: spec.get(c))
+            }
+            next.copy(
+                networkName = networkName,
+                networkSecret = networkSecret,
+                instanceName = instanceName,
+                virtualIpv4 = virtualIpv4,
+                dhcp = dhcp,
+                peerUrls = peerUrls,
+                listenerUrls = listenerUrls,
+                mappedListeners = mappedListeners,
+                proxyCidrs = proxyCidrs,
+                routes = routes,
+                enableManualRoutes = enableManualRoutes,
+                enableRelayNetworkWhitelist = enableRelayWhitelist,
+                relayNetworkWhitelist = relayWhitelist.ifBlank { "*" },
+                hostname = hostname.ifEmpty { null },
+                devName = devName,
+                mtu = mtu.toIntOrNull(),
+                instanceRecvBpsLimit = recvBpsLimit.toLongOrNull(),
+                latencyFirst = latencyFirst,
+                // 之前漏了这一行：只展开/收起高级区就会被判成「已修改」，
+                // 而且展开状态永远存不下来。
+                advancedSettings = showAdvanced,
+                encryptionAlgorithm = encryptionAlgorithm,
+                dataCompressAlgo = dataCompressAlgo,
+                disableIpv6 = disableIpv6,
+                enableKcpProxy = enableKcpProxy,
+                disableP2p = disableP2p,
+                enableExitNode = enableExitNode,
+                multiThread = multiThread,
+                enableMagicDns = enableMagicDns,
+                enablePrivateMode = enablePrivateMode,
+                disableEncryption = disableEncryption,
+                disableTcpHolePunching = disableTcpHolePunching,
+                disableUdpHolePunching = disableUdpHolePunching,
+                enableVpnPortal = enableVpnPortal,
+                vpnPortalListenPort = vpnPortalListenPort.toIntOrNull() ?: 22022,
+                vpnPortalClients = vpnPortalClients,
+                enableSocks5 = enableSocks5,
+                socks5Port = socks5Port.toIntOrNull() ?: 1080,
+                exitNodes = exitNodes,
+            )
+        }
     }
 
     // ---------- 校验 ----------
     var attemptedSave by remember(instanceId, loadGeneration) { mutableStateOf(false) }
+
+    /** 逐条校验带前缀长的 IPv4 CIDR 列表，返回第一个非法项（合法则 null）。 */
+    fun firstInvalidCidr(values: List<String>): String? =
+        values.map { it.trim() }.firstOrNull { it.isNotBlank() && !isValidIpv4Cidr(it) }
+
+    /** 逐条校验裸 IPv4（上游 exit_nodes 是 Vec<IpAddr>，不接受 CIDR）。 */
+    fun firstInvalidIp(values: List<String>): String? =
+        values.map { it.trim() }.firstOrNull { it.isNotBlank() && !isValidIpv4(it) }
 
     fun validate(): Map<String, String> {
         val errs = mutableMapOf<String, String>()
@@ -231,10 +316,32 @@ fun ConfigScreen(
         if (mtu.isNotBlank() && (mtuVal == null || mtuVal !in 1280..65535)) {
             errs["mtu"] = context.getString(R.string.err_invalid_mtu)
         }
+        // 上游按 cidr::Ipv4Cidr 解析这些值，格式不对会让整份 TOML 解析失败，
+        // 所以必须在保存前拦下，而不是等到启动时报 serde 错误。
+        if (firstInvalidCidr(proxyCidrs) != null) {
+            errs["proxyCidrs"] = context.getString(R.string.err_invalid_ipv4_cidr)
+        }
+        if (enableManualRoutes && firstInvalidCidr(routes) != null) {
+            errs["routes"] = context.getString(R.string.err_invalid_ipv4_cidr)
+        }
+        if (firstInvalidIp(exitNodes) != null) {
+            errs["exitNodes"] = context.getString(R.string.err_invalid_ipv4)
+        }
+        if (recvBpsLimit.isNotBlank() && (recvBpsLimit.toLongOrNull() ?: -1L) < 0L) {
+            errs["recvBpsLimit"] = context.getString(R.string.err_invalid_bps_limit)
+        }
         if (enableVpnPortal) {
             val port = vpnPortalListenPort.toIntOrNull()
             if (port == null || port !in 1..65535) {
                 errs["portalPort"] = context.getString(R.string.err_invalid_port)
+            }
+            // 上游 VpnPortalClientConfig 同时要求 name 与带前缀长的 virtual_ip
+            vpnPortalClients.forEachIndexed { index, client ->
+                val named = client.name.isNotBlank()
+                val validIp = isValidIpv4Cidr(client.virtualIp)
+                if ((named || client.virtualIp.isNotBlank()) && !(named && validIp)) {
+                    errs["portalClient$index"] = context.getString(R.string.err_invalid_vpn_client)
+                }
             }
         }
         if (enableSocks5) {
@@ -392,26 +499,68 @@ fun ConfigScreen(
 
         // Proxy CIDRs
         Card(modifier = Modifier.fillMaxWidth()) {
-            UrlListInput(
-                label = stringResource(R.string.config_proxy_cidrs),
-                urls = proxyCidrs,
-                onUrlsChange = { proxyCidrs = it },
-                hint = stringResource(R.string.config_proxy_cidrs_hint),
-                modifier = Modifier.padding(16.dp),
-            )
+            Column {
+                UrlListInput(
+                    label = stringResource(R.string.config_proxy_cidrs),
+                    urls = proxyCidrs,
+                    onUrlsChange = { proxyCidrs = it },
+                    hint = stringResource(R.string.config_proxy_cidrs_hint),
+                    modifier = Modifier.padding(16.dp),
+                )
+                FieldError(errors["proxyCidrs"])
+            }
         }
 
         Spacer(Modifier.height(12.dp))
 
         // Exit Nodes
         Card(modifier = Modifier.fillMaxWidth()) {
+            Column {
+                UrlListInput(
+                    label = stringResource(R.string.config_exit_nodes),
+                    urls = exitNodes,
+                    onUrlsChange = { exitNodes = it },
+                    hint = stringResource(R.string.config_exit_nodes_hint),
+                    modifier = Modifier.padding(16.dp),
+                )
+                FieldError(errors["exitNodes"])
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // Mapped Listeners：NAT 之后对外公布的地址
+        Card(modifier = Modifier.fillMaxWidth()) {
             UrlListInput(
-                label = stringResource(R.string.config_exit_nodes),
-                urls = exitNodes,
-                onUrlsChange = { exitNodes = it },
-                hint = stringResource(R.string.config_exit_nodes_hint),
+                label = stringResource(R.string.config_mapped_listeners),
+                urls = mappedListeners,
+                onUrlsChange = { mappedListeners = it },
+                hint = stringResource(R.string.config_mapped_listeners_hint),
                 modifier = Modifier.padding(16.dp),
             )
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // Manual Routes
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column {
+                SwitchPreference(
+                    title = stringResource(R.string.config_manual_routes),
+                    summary = stringResource(R.string.config_manual_routes_summary),
+                    checked = enableManualRoutes,
+                    onCheckedChange = { enableManualRoutes = it },
+                )
+                if (enableManualRoutes) {
+                    UrlListInput(
+                        label = stringResource(R.string.config_routes_hint),
+                        urls = routes,
+                        onUrlsChange = { routes = it },
+                        modifier = Modifier.padding(16.dp),
+                    )
+                    FieldError(errors["routes"])
+                }
+            }
         }
 
         Spacer(Modifier.height(12.dp))
@@ -469,12 +618,9 @@ fun ConfigScreen(
                             checked = disableP2p,
                             onCheckedChange = { disableP2p = it },
                         )
-                        SwitchPreference(
-                            title = stringResource(R.string.config_no_tun),
-                            summary = stringResource(R.string.config_no_tun_summary),
-                            checked = noTun,
-                            onCheckedChange = { noTun = it },
-                        )
+                        // 注意：这里不再提供 "No TUN" 开关。Android 的 TUN 由 VpnService
+                        // 建立并交给核心，配置里恒为 no_tun = true；旧开关既无作用，
+                        // 打开时还会写出重复键让整份配置解析失败。
                         SwitchPreference(
                             title = stringResource(R.string.config_enable_exit_node),
                             summary = stringResource(R.string.config_enable_exit_node_summary),
@@ -517,6 +663,69 @@ fun ConfigScreen(
                             checked = disableUdpHolePunching,
                             onCheckedChange = { disableUdpHolePunching = it },
                         )
+
+                        // 加密算法 / 压缩：移动端常把 chacha20 与 zstd 当作省电省流选项
+                        OverlayDropdownPreference(
+                            title = stringResource(R.string.config_encryption_algorithm),
+                            items = EncryptionAlgorithm.entries.map { it.value },
+                            selectedIndex = EncryptionAlgorithm.entries.indexOf(encryptionAlgorithm)
+                                .coerceAtLeast(0),
+                            onSelectedIndexChange = { index ->
+                                EncryptionAlgorithm.entries.getOrNull(index)?.let { encryptionAlgorithm = it }
+                            },
+                        )
+                        OverlayDropdownPreference(
+                            title = stringResource(R.string.config_data_compress),
+                            items = CompressionAlgo.entries.map { it.value },
+                            selectedIndex = CompressionAlgo.entries.indexOf(dataCompressAlgo)
+                                .coerceAtLeast(0),
+                            onSelectedIndexChange = { index ->
+                                CompressionAlgo.entries.getOrNull(index)?.let { dataCompressAlgo = it }
+                            },
+                        )
+
+                        TextField(
+                            value = recvBpsLimit,
+                            onValueChange = { recvBpsLimit = it },
+                            label = stringResource(R.string.config_recv_bps_limit),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                        )
+                        FieldError(errors["recvBpsLimit"])
+
+                        SwitchPreference(
+                            title = stringResource(R.string.config_relay_whitelist),
+                            summary = stringResource(R.string.config_relay_whitelist_summary),
+                            checked = enableRelayWhitelist,
+                            onCheckedChange = { enableRelayWhitelist = it },
+                        )
+                        if (enableRelayWhitelist) {
+                            TextField(
+                                value = relayWhitelist,
+                                onValueChange = { relayWhitelist = it },
+                                label = stringResource(R.string.config_relay_whitelist_hint),
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                            )
+                        }
+
+                        // 这些旗标以前只存在于模型里、从不写进 TOML，等于界面上的空壳
+                        Text(
+                            text = stringResource(R.string.config_expert_flags),
+                            style = MiuixTheme.textStyles.body1,
+                            modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp),
+                        )
+                        BoolFlagGrid(
+                            flags = advancedFlagSpecs.map { spec ->
+                                BoolFlag(
+                                    key = spec.key,
+                                    label = stringResource(spec.labelRes),
+                                    value = advancedFlags[spec.key] ?: false,
+                                )
+                            },
+                            onFlagChange = { key, value ->
+                                advancedFlags = advancedFlags.toMutableMap().apply { put(key, value) }
+                            },
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        )
                     }
                 }
             }
@@ -548,17 +757,17 @@ fun ConfigScreen(
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                             )
                             FieldError(errors["portalPort"])
-                            TextField(
-                                value = vpnPortalClientNetworkAddr,
-                                onValueChange = { vpnPortalClientNetworkAddr = it },
-                                label = stringResource(R.string.config_vpn_portal_network),
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                            // 上游已用 [[vpn_portal_config.clients]] 取代旧的全局 client_cidr
+                            Text(
+                                text = stringResource(R.string.config_vpn_portal_clients),
+                                style = MiuixTheme.textStyles.body1,
+                                modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 4.dp),
                             )
-                            TextField(
-                                value = vpnPortalClientNetworkLen,
-                                onValueChange = { vpnPortalClientNetworkLen = it },
-                                label = stringResource(R.string.config_vpn_portal_network_len),
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                            VpnPortalClientEditor(
+                                clients = vpnPortalClients,
+                                onClientsChange = { vpnPortalClients = it },
+                                errorFor = { index -> errors["portalClient$index"] },
+                                modifier = Modifier.padding(horizontal = 16.dp),
                             )
                         }
                     }
@@ -674,6 +883,16 @@ private fun FieldError(message: String?) {
 }
 
 private val ipv4CidrRegex = Regex("""^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})$""")
+private val ipv4Regex = Regex("""^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$""")
+
+private fun isValidIpv4(value: String): Boolean {
+    val match = ipv4Regex.matchEntire(value.trim()) ?: return false
+    val (a, b, c, d) = match.destructured
+    return listOf(a, b, c, d).all { octet ->
+        val n = octet.toIntOrNull() ?: return false
+        n in 0..255
+    }
+}
 
 private fun isValidIpv4Cidr(value: String): Boolean {
     val match = ipv4CidrRegex.matchEntire(value.trim()) ?: return false

@@ -14,7 +14,7 @@ EasyTier Android 客户端，基于 Kotlin Jetpack Compose + miuix 组件库构�
 
 ## 简介
 
-EasyTier miuix 是 [EasyTier](https://github.com/EasyTier/EasyTier) 的原生 Android 客户端，内置 EasyTier 2.6.4 核心（Rust/JNI），提供网络配置管理、运行状态监控与 VPN 服务。UI 采用 miuix 组件库，支持主题定制、液态玻璃效果和中英文切换。
+EasyTier miuix 是 [EasyTier](https://github.com/EasyTier/EasyTier) 的原生 Android 客户端，内置 EasyTier 2.7.0 核心（Rust/JNI），提供网络配置管理、运行状态监控与 VPN 服务。UI 采用 miuix 组件库，支持主题定制、液态玻璃效果和中英文切换。
 
 ## 功能
 
@@ -59,7 +59,7 @@ EasyTier miuix 是 [EasyTier](https://github.com/EasyTier/EasyTier) 的原生 An
 | 架构 | MVVM + Repository |
 | DI | Hilt 2.59.2 |
 | 构建 | Gradle + AGP 8.13.2 |
-| 后端 | EasyTier 2.6.4 Rust 核心 (JNI) |
+| 后端 | EasyTier 2.7.0 Rust 核心 (JNI) |
 
 ## 构建
 

@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import top.easytier.miuix.R
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Text
@@ -35,7 +37,7 @@ fun UrlListInput(
         ) {
             Text(label, style = MiuixTheme.textStyles.body1)
             TextButton(
-                text = "+ Add",
+                text = stringResource(R.string.common_add),
                 onClick = { onUrlsChange(urls + "") },
             )
         }

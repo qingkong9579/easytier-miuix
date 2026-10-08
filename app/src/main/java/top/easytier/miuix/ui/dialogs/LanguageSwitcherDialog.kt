@@ -26,6 +26,7 @@ fun LanguageSwitcherDialog(
 
     OverlayDropdownPreference(
         title = stringResource(R.string.settings_language),
+        summary = stringResource(R.string.settings_language_summary),
         items = languageNames,
         selectedIndex = selectedIndex.coerceIn(0, languageNames.lastIndex),
         onSelectedIndexChange = { index ->

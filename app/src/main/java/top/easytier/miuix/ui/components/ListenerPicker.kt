@@ -7,17 +7,22 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import top.easytier.miuix.R
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -56,6 +61,35 @@ fun ListenerPicker(
                         selectedIndex = 0
                     }
                 },
+            )
+        }
+
+        // 自定义监听地址：上游 #1967 起支持 URL 路径（如 ws://host:11011/path），
+        // 固定预设覆盖不到反代场景，所以保留一个自由输入入口。
+        var customUrl by remember { mutableStateOf("") }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextField(
+                value = customUrl,
+                onValueChange = { customUrl = it.replace("\n", "").replace("\r", "").trim() },
+                label = stringResource(R.string.config_listeners_hint),
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(Modifier.width(4.dp))
+            TextButton(
+                text = stringResource(R.string.config_add_listener),
+                onClick = {
+                    val url = customUrl.trim()
+                    if (url.isNotEmpty() && url !in urls) {
+                        onUrlsChange(urls + url)
+                        customUrl = ""
+                    }
+                },
+                enabled = customUrl.isNotBlank(),
             )
         }
 

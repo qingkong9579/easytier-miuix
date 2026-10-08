@@ -12,6 +12,25 @@ val keystoreProperties = Properties().apply {
     if (keystorePropertiesFile.exists()) load(keystorePropertiesFile.inputStream())
 }
 
+/**
+ * 内置 EasyTier 核心版本，直接读 vendored 检出里的 `[package] version`。
+ *
+ * 手写常量会和预编译的 libeasytier_android_jni.so 漂移（同步内核后忘了改），
+ * 所以这里让构建时去读权威来源；easytier-build 不存在时（干净克隆）降级为 unknown。
+ */
+val vendoredCoreVersion: String = run {
+    val manifest = rootProject.file("easytier-build/easytier/Cargo.toml")
+    if (!manifest.exists()) {
+        "unknown"
+    } else {
+        manifest.readText()
+            .substringAfter("[package]", "")
+            .substringBefore("\n[")
+            .let { pkg -> Regex("""(?m)^\s*version\s*=\s*"([^"]+)"""").find(pkg)?.groupValues?.get(1) }
+            ?: "unknown"
+    }
+}
+
 android {
     namespace = "top.easytier.miuix"
     compileSdk = 37
@@ -20,8 +39,9 @@ android {
         applicationId = "top.easytier.miuix"
         minSdk = 32
         targetSdk = 37
-        versionCode = 12
-        versionName = "1.2.1"
+        versionCode = 13
+        versionName = "1.3.0"
+        buildConfigField("String", "CORE_VERSION", "\"$vendoredCoreVersion\"")
     }
 
     buildTypes {
@@ -50,6 +70,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

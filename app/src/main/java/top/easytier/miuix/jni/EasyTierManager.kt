@@ -97,7 +97,10 @@ class EasyTierManager(
             if (infosJson.isNullOrEmpty()) return
 
             val jsonObject = JSONObject(infosJson)
-            val instanceInfo = jsonObject.optJSONObject(instanceName) ?: return
+            // collect_network_infos 的顶层是 {"map": {实例名: 详情}}，
+            // 且详情自上游改为直出（不再有 "detail" 包装）。
+            val map = jsonObject.optJSONObject("map") ?: jsonObject
+            val instanceInfo = map.optJSONObject(instanceName) ?: return
 
             val running = instanceInfo.optBoolean("running", false)
             if (!running) {
@@ -105,11 +108,12 @@ class EasyTierManager(
                 return
             }
 
-            val detail = instanceInfo.optJSONObject("detail") ?: return
+            val detail = instanceInfo
             val myNodeInfo = detail.optJSONObject("my_node_info") ?: return
             val virtualIpv4 = myNodeInfo.optJSONObject("virtual_ipv4") ?: return
 
-            val addr = virtualIpv4.optInt("address", 0)
+            // address 是 Ipv4Addr 消息（{"addr": <uint32>}），不是整数
+            val addr = virtualIpv4.optJSONObject("address")?.optInt("addr", 0) ?: 0
             val networkLength = virtualIpv4.optInt("network_length", 24)
             val ip = String.format(
                 "%d.%d.%d.%d",

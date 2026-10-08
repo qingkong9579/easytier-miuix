@@ -76,16 +76,18 @@ fun NetworkListScreen(
     ) {
         Spacer(Modifier.height(12.dp))
 
-        // Create network button
-        Button(
-            onClick = onCreateNetwork,
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColorsPrimary(),
-        ) {
-            Text(stringResource(R.string.network_create))
-        }
+        // 空列表时中间的空态已经有一个「创建网络」按钮，顶部不再重复渲染同一个动作
+        if (instances.isNotEmpty()) {
+            Button(
+                onClick = onCreateNetwork,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColorsPrimary(),
+            ) {
+                Text(stringResource(R.string.network_create))
+            }
 
-        Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(12.dp))
+        }
 
         if (instances.isEmpty()) {
             Box(

@@ -13,7 +13,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import top.easytier.miuix.R
 import top.easytier.miuix.data.model.PortForwardConfig
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.Card
@@ -51,7 +53,7 @@ fun PortForwardEditor(
             },
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("+ Add Port Forward")
+            Text(stringResource(R.string.config_port_forward_add))
         }
     }
 }
@@ -70,15 +72,15 @@ private fun PortForwardRow(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Port Forward", style = MiuixTheme.textStyles.body1)
-                TextButton(text = "Delete", onClick = onDelete)
+                Text(stringResource(R.string.config_port_forwards), style = MiuixTheme.textStyles.body1)
+                TextButton(text = stringResource(R.string.config_port_forward_delete), onClick = onDelete)
             }
 
             Spacer(Modifier.height(8.dp))
 
             // Protocol selector
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Protocol:", style = MiuixTheme.textStyles.body2)
+                Text(stringResource(R.string.config_port_forward_protocol), style = MiuixTheme.textStyles.body2)
                 Spacer(Modifier.width(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     RadioButton(
@@ -107,7 +109,7 @@ private fun PortForwardRow(
                 TextField(
                     value = config.bindIp,
                     onValueChange = { onConfigChange(config.copy(bindIp = it)) },
-                    label = "Bind IP",
+                    label = stringResource(R.string.config_port_forward_bind_ip),
                     modifier = Modifier.weight(1f),
                 )
                 TextField(
@@ -115,7 +117,7 @@ private fun PortForwardRow(
                     onValueChange = {
                         onConfigChange(config.copy(bindPort = it.toIntOrNull() ?: 0))
                     },
-                    label = "Bind Port",
+                    label = stringResource(R.string.config_port_forward_bind_port),
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -130,7 +132,7 @@ private fun PortForwardRow(
                 TextField(
                     value = config.dstIp,
                     onValueChange = { onConfigChange(config.copy(dstIp = it)) },
-                    label = "Dst IP",
+                    label = stringResource(R.string.config_port_forward_dst_ip),
                     modifier = Modifier.weight(1f),
                 )
                 TextField(
@@ -138,7 +140,7 @@ private fun PortForwardRow(
                     onValueChange = {
                         onConfigChange(config.copy(dstPort = it.toIntOrNull() ?: 0))
                     },
-                    label = "Dst Port",
+                    label = stringResource(R.string.config_port_forward_dst_port),
                     modifier = Modifier.weight(1f),
                 )
             }

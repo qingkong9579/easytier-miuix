@@ -42,14 +42,10 @@
     <string name="color_orange">橙色</string>
     <string name="color_brown">棕色</string>
     <string name="color_blue_grey">蓝灰色</string>
-    <string name="settings_mode">运行模式</string>
-    <string name="settings_mode_normal">普通模式</string>
     <string name="settings_config_server">配置服务器</string>
     <string name="settings_config_server_not_configured">未配置</string>
-    <string name="settings_log_level">日志级别</string>
-    <string name="settings_log_level_off">关闭</string>
     <string name="settings_about">关于</string>
-    <string name="settings_exit">退出</string>
+    <string name="settings_about_summary">版本、内置内核与项目链接</string>
     <string name="settings_floating_bottom_bar">悬浮底栏</string>
     <string name="settings_floating_bottom_bar_summary">使用药丸形状的悬浮导航栏</string>
     <string name="settings_blur_effects">模糊效果</string>
@@ -58,10 +54,13 @@
     <string name="settings_floating_bar_blur_summary">为悬浮底栏启用模糊效果</string>
 
     <!-- About -->
-    <string name="about_title">关于 EasyTier</string>
-    <string name="about_version">版本 %s</string>
-    <string name="about_description">轻量级、去中心化的 Mesh VPN，支持 WireGuard。</string>
-    <string name="about_github">GitHub</string>
+    <string name="about_title">关于</string>
+    <string name="about_version">应用版本 %s</string>
+    <string name="about_core_version">EasyTier 内核 %s</string>
+    <string name="about_description">EasyTier 的原生 Android 客户端，使用 Jetpack Compose 与 miuix 组件库构建。可管理网络配置、查看实时流量与对端，并通过 Android VpnService 运行 Mesh VPN。</string>
+    <string name="about_built_on">由 EasyTier Rust 内核驱动，以原生库形式静态链接。</string>
+    <string name="about_license">本客户端以 Apache-2.0 许可发布；EasyTier 本身是独立项目，采用 LGPL-3.0。</string>
+    <string name="about_open_github">打开 GitHub</string>
     <string name="about_github_url">https://github.com/qingkong9579/easytier-miuix</string>
 
     <!-- Config Server -->
@@ -130,8 +129,6 @@
     <string name="config_enable_kcp_proxy_summary">启用 KCP 协议代理</string>
     <string name="config_disable_p2p">禁用 P2P</string>
     <string name="config_disable_p2p_summary">禁用点对点连接</string>
-    <string name="config_no_tun">无 TUN</string>
-    <string name="config_no_tun_summary">不使用 TUN 设备运行</string>
     <string name="config_enable_exit_node">启用出口节点</string>
     <string name="config_enable_exit_node_summary">允许此节点作为出口节点</string>
     <string name="config_multi_thread">多线程</string>
@@ -152,8 +149,6 @@
     <string name="config_vpn_portal_enable">启用 VPN 门户</string>
     <string name="config_vpn_portal_enable_summary">启用 WireGuard VPN 门户</string>
     <string name="config_vpn_portal_port">监听端口</string>
-    <string name="config_vpn_portal_network">客户端网络地址</string>
-    <string name="config_vpn_portal_network_len">客户端网络长度</string>
 
     <!-- Config - SOCKS5 -->
     <string name="config_socks5_proxy">SOCKS5 代理</string>
@@ -205,10 +200,7 @@
     <string name="status_show_less">收起</string>
     <string name="status_show_count">显示 %d 条</string>
     <string name="status_nat_unknown">未知</string>
-    <string name="status_nat_endpoint_independent">端点无关</string>
-    <string name="status_nat_endpoint_dependent">端点相关</string>
     <string name="status_nat_symmetric">对称</string>
-    <string name="status_nat_type_format">类型 %d</string>
     <string name="status_loss">丢包</string>
     <string name="status_cost">开销</string>
     <string name="status_public_ipv6">公网 IPv6</string>
@@ -278,4 +270,51 @@
     <!-- 快捷设置磁贴 -->
     <string name="tile_label">EasyTier VPN</string>
     <string name="tile_no_config">尚未配置网络</string>
+    <!-- 高级旗标（术语对齐上游 cn.yaml） -->
+    <string name="config_expert_flags">其他选项</string>
+    <string name="config_p2p_only">仅 P2P</string>
+    <string name="config_lazy_p2p">延迟 P2P</string>
+    <string name="config_need_p2p">需要 P2P</string>
+    <string name="config_relay_all_peer_rpc">转发 RPC 包</string>
+    <string name="config_disable_kcp_input">禁用 KCP 输入</string>
+    <string name="config_enable_quic_proxy">启用 QUIC 代理</string>
+    <string name="config_disable_quic_input">禁用 QUIC 输入</string>
+    <string name="config_disable_upnp">禁用 UPnP</string>
+    <string name="config_udp_broadcast_relay">UDP 广播中继</string>
+    <string name="config_disable_sym_hole_punching">禁用对称 NAT 打洞</string>
+    <string name="config_proxy_forward_by_system">系统转发</string>
+    <string name="config_use_smoltcp">使用用户态协议栈</string>
+    <string name="config_bind_device">仅使用物理网卡</string>
+
+    <!-- 加密与压缩 -->
+    <string name="config_encryption_algorithm">加密算法</string>
+    <string name="config_data_compress">数据压缩</string>
+
+    <!-- 监听映射 / 手动路由 / 中继白名单 -->
+    <string name="config_mapped_listeners">监听映射</string>
+    <string name="config_mapped_listeners_hint">例如 tcp://1.2.3.4:11010</string>
+    <string name="config_manual_routes">手动路由</string>
+    <string name="config_manual_routes_summary">向网络额外公布 IPv4 网段</string>
+    <string name="config_routes_hint">例如 192.168.1.0/24</string>
+    <string name="config_relay_whitelist">网络白名单</string>
+    <string name="config_relay_whitelist_summary">仅中转白名单内网络的数据</string>
+    <string name="config_relay_whitelist_hint">空格分隔，例如 net1 net2</string>
+    <string name="config_recv_bps_limit">实例接收限速（bps）</string>
+
+    <!-- VPN Portal 客户端 -->
+    <string name="config_vpn_portal_clients">WireGuard 客户端</string>
+    <string name="config_vpn_portal_client">设备 %d</string>
+    <string name="config_vpn_portal_client_name">设备名称（选填）</string>
+    <string name="config_vpn_portal_client_ip">设备虚拟 IP（含前缀，例如 10.14.14.2/24）</string>
+    <string name="config_vpn_portal_client_add">添加设备</string>
+    <string name="config_vpn_portal_clients_empty">尚未添加设备。门户仍会启动，添加设备后可分配固定地址。</string>
+
+    <!-- 通用 -->
+    <string name="common_add">+ 添加</string>
+
+    <!-- 校验错误 -->
+    <string name="err_invalid_ipv4">IPv4 地址无效，例如 10.0.0.1</string>
+    <string name="err_invalid_port_forward">需要填写绑定地址与目标地址</string>
+    <string name="err_invalid_vpn_client">需要填写设备名称与带前缀的虚拟 IP</string>
+    <string name="err_invalid_bps_limit">接收限速必须为正数</string>
 </resources>

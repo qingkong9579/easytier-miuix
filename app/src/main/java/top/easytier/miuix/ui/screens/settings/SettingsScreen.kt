@@ -53,7 +53,7 @@ fun SettingsScreen(
     ) {
         item { Spacer(Modifier.height(12.dp)) }
 
-        // Connection settings
+        // 连接：远程配置服务器
         item {
             Card(modifier = Modifier.fillMaxWidth()) {
                 ArrowPreference(
@@ -70,7 +70,8 @@ fun SettingsScreen(
 
         item { Spacer(Modifier.height(12.dp)) }
 
-        // UI settings
+        // 外观：主题与语言同属显示偏好，放在同一组里；此前主题单独一张卡、
+        // 语言却和「关于」挤在一起，分组没有依据。
         item {
             Card(modifier = Modifier.fillMaxWidth()) {
                 ArrowPreference(
@@ -78,22 +79,23 @@ fun SettingsScreen(
                     summary = stringResource(R.string.settings_theme_summary),
                     onClick = onOpenTheme,
                 )
-            }
-        }
-
-        item { Spacer(Modifier.height(12.dp)) }
-
-        // General settings
-        item {
-            Card(modifier = Modifier.fillMaxWidth()) {
                 LanguageSwitcherDialog(
                     currentLanguage = appSettings.language,
                     onLanguageSelected = { language ->
                         onSettingsChange(appSettings.copy(language = language))
                     },
                 )
+            }
+        }
+
+        item { Spacer(Modifier.height(12.dp)) }
+
+        // 其他
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
                 ArrowPreference(
                     title = stringResource(R.string.settings_about),
+                    summary = stringResource(R.string.settings_about_summary),
                     onClick = { showAbout = true },
                 )
             }

@@ -21,10 +21,15 @@ import org.json.JSONObject
 import top.easytier.miuix.data.model.toJSON
 import top.easytier.miuix.data.model.toNetworkConfig
 import java.io.File
+import top.easytier.miuix.data.model.CompressionAlgo
+import top.easytier.miuix.data.model.EncryptionAlgorithm
+import top.easytier.miuix.data.model.EventInfo
+import top.easytier.miuix.data.model.EventLevel
 import top.easytier.miuix.data.model.Ipv4Addr
 import top.easytier.miuix.data.model.Ipv4Inet
 import top.easytier.miuix.data.model.Ipv6Addr
 import top.easytier.miuix.data.model.Mode
+import top.easytier.miuix.data.model.NatType
 import top.easytier.miuix.data.model.NetworkConfig
 import top.easytier.miuix.data.model.NetworkInstance
 import top.easytier.miuix.data.model.NetworkInstanceRunningInfo
@@ -583,13 +588,72 @@ class RealNetworkRepository @Inject constructor(
 
             NetworkInstance(
                 instanceId = lookupKey,
-                running = true,
+                // 核心在实例未就绪时会返回 running=false + error_msg（此时其余字段都是默认值）。
+                // 注意 pbjson 会省略值为 false 的布尔键，所以缺键即代表未运行。
+                running = detail.running,
                 errorMsg = detail.errorMsg ?: "",
                 detail = detail,
             )
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing network info", e)
             null
+        }
+    }
+
+    /**
+     * 解析一条上游运行事件。
+     *
+     * 事件 JSON 只有两个键：`time`（chrono 的 RFC3339 字符串）与 `event`
+     * （单键对象，键名是 `GlobalCtxEvent` 变体名）。事件级别从未被序列化，
+     * 只能由类型名与 payload 推导，所以不能像以前那样去读 `level`/`peer_id`/`timestamp`。
+     */
+    private fun parseEvent(raw: String): EventInfo {
+        return try {
+            val obj = JSONObject(raw)
+            val eventObj = obj.optJSONObject("event")
+            val type = eventObj?.keys()?.asSequence()?.firstOrNull()
+                ?: obj.keys().asSequence().firstOrNull { it != "time" && it != "event" }
+                ?: ""
+            val detail = eventObj?.optJSONObject(type) ?: obj.optJSONObject(type)
+            EventInfo(
+                level = deriveEventLevel(type, detail),
+                type = type,
+                timestamp = parseRfc3339Millis(obj.optString("time", "")),
+                raw = raw,
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to parse event: $raw", e)
+            EventInfo(raw = raw)
+        }
+    }
+
+    /** 事件等级由 `GlobalCtxEvent` 变体名推导（见 easytier/src/common/global_ctx.rs）。 */
+    private fun deriveEventLevel(type: String, detail: JSONObject?): EventLevel {
+        val payloadError = detail?.optString("error", "").orEmpty()
+        return when {
+            type.endsWith("Error") || type.endsWith("Failed") -> EventLevel.ERROR
+            payloadError.isNotEmpty() && payloadError != "null" -> EventLevel.ERROR
+            type.endsWith("Conflicted") ||
+                type.endsWith("Removed") ||
+                type.endsWith("Disconnected") -> EventLevel.WARN
+            else -> EventLevel.INFO
+        }
+    }
+
+    /** 解析 RFC3339 时间戳为 epoch 毫秒；解析失败返回 0。 */
+    private fun parseRfc3339Millis(value: String): Long {
+        if (value.isEmpty()) return 0
+        return try {
+            java.time.OffsetDateTime.parse(value).toInstant().toEpochMilli()
+        } catch (_: Exception) {
+            try {
+                java.time.LocalDateTime.parse(value)
+                    .atZone(java.time.ZoneId.systemDefault())
+                    .toInstant()
+                    .toEpochMilli()
+            } catch (_: Exception) {
+                0
+            }
         }
     }
 
@@ -604,30 +668,12 @@ class RealNetworkRepository @Inject constructor(
         val eventsArr = obj.optJSONArray("events")
         if (eventsArr != null) {
             for (i in 0 until eventsArr.length()) {
-                val eventObj = eventsArr.optJSONObject(i)
-                if (eventObj != null) {
-                    val level = eventObj.optString("level", "info")
-                    val message = eventObj.optString("message", eventObj.optString("msg", ""))
-                    val peerId = eventObj.optLong("peer_id", 0)
-                    val timestamp = eventObj.optLong("timestamp", System.currentTimeMillis())
-                    val raw = eventObj.toString()
-                    events.add(raw)
-                    parsedEvents.add(
-                        top.easytier.miuix.data.model.EventInfo(
-                            level = level,
-                            message = message.ifEmpty { raw },
-                            peerId = peerId,
-                            timestamp = timestamp,
-                            raw = raw,
-                        )
-                    )
-                } else {
-                    val str = eventsArr.optString(i)
-                    if (!str.isNullOrEmpty()) {
-                        events.add(str)
-                        parsedEvents.add(top.easytier.miuix.data.model.EventInfo(message = str, raw = str))
-                    }
-                }
+                // 上游 events 是 repeated string，元素形如
+                // {"time":"<RFC3339>","event":{"<GlobalCtxEvent 变体名>":{…}}}
+                val raw = eventsArr.optString(i, "")
+                if (raw.isEmpty()) continue
+                events.add(raw)
+                parsedEvents.add(parseEvent(raw))
             }
         }
 
@@ -727,9 +773,10 @@ class RealNetworkRepository @Inject constructor(
         }
 
         val stunInfo = obj.optJSONObject("stun_info")?.let {
+            // udp_nat_type / tcp_nat_type 是枚举名字符串，且 Unknown 时缺键
             StunInfo(
-                udpNatType = it.optInt("udp_nat_type", 0),
-                tcpNatType = it.optInt("tcp_nat_type", 0),
+                udpNatType = NatType.fromWire(it.optString("udp_nat_type", null)),
+                tcpNatType = NatType.fromWire(it.optString("tcp_nat_type", null)),
                 lastUpdateTime = it.optLong("last_update_time", 0),
             )
         } ?: StunInfo()
@@ -776,6 +823,7 @@ class RealNetworkRepository @Inject constructor(
             hostname = obj.optString("hostname", ""),
             version = obj.optString("version", ""),
             proxyCidrs = proxyCidrs,
+            pathLatencyUs = obj.optLong("path_latency", 0),
         )
     }
 
@@ -787,7 +835,42 @@ class RealNetworkRepository @Inject constructor(
                 connsArr.optJSONObject(i)?.let { conns.add(parsePeerConnInfo(it)) }
             }
         }
-        return PeerInfo(peerId = obj.optLong("peer_id", 0), conns = conns)
+        val directlyConnected = mutableListOf<String>()
+        obj.optJSONArray("directly_connected_conns")?.let { arr ->
+            for (i in 0 until arr.length()) {
+                arr.optJSONObject(i)?.let { directlyConnected.add(uuidStringOf(it)) }
+            }
+        }
+        return PeerInfo(
+            peerId = obj.optLong("peer_id", 0),
+            conns = conns,
+            defaultConnId = obj.optJSONObject("default_conn_id")?.let { uuidStringOf(it) } ?: "",
+            directlyConnectedConns = directlyConnected.filter { it.isNotEmpty() },
+        )
+    }
+
+    /**
+     * 把 `common.UUID`（part1..part4，各 uint32）渲染成核心用的规范 UUID 字符串。
+     *
+     * 对齐 easytier-proto 的 `impl From<Uuid> for uuid::Uuid`：
+     * `from_u64_pair((part1 << 32) | part2, (part3 << 32) | part4)`，
+     * 因此前 8 字节是 (part1,part2) 的大端序，后 8 字节是 (part3,part4) 的大端序。
+     * `PeerConnInfo.conn_id` 就是同一套 `to_string()` 结果，两边才能对上。
+     */
+    private fun uuidStringOf(obj: JSONObject): String {
+        val hi = ((obj.optLong("part1", 0) and 0xFFFFFFFFL) shl 32) or
+            (obj.optLong("part2", 0) and 0xFFFFFFFFL)
+        val lo = ((obj.optLong("part3", 0) and 0xFFFFFFFFL) shl 32) or
+            (obj.optLong("part4", 0) and 0xFFFFFFFFL)
+        if (hi == 0L && lo == 0L) return ""
+        val hex = "%016x%016x".format(hi, lo)
+        return buildString {
+            append(hex, 0, 8).append('-')
+            append(hex, 8, 12).append('-')
+            append(hex, 12, 16).append('-')
+            append(hex, 16, 20).append('-')
+            append(hex, 20, 32)
+        }
     }
 
     private fun parsePeerConnInfo(obj: JSONObject): PeerConnInfo {
@@ -815,14 +898,23 @@ class RealNetworkRepository @Inject constructor(
             peerId = obj.optLong("peer_id", 0),
             tunnel = tunnel,
             stats = stats,
+            // pbjson 省略 0.0，缺键即 0，哨兵值没有意义
             lossRate = obj.optDouble("loss_rate", 0.0).toFloat(),
+            isClient = obj.optBoolean("is_client", false),
+            secureAuthLevel = obj.optString("secure_auth_level", ""),
+            peerIdentityType = obj.optString("peer_identity_type", ""),
+            networkName = obj.optString("network_name", ""),
+            isClosed = obj.optBoolean("is_closed", false),
         )
     }
 
     private fun generateTomlConfig(config: NetworkConfig): String {
         return buildString {
             // Match the exact format from easytier-gui's gen_config() + dump()
-            // Top-level fields (only non-default values)
+            // 注意：TOML 的顶层键必须写在任何 [table] 头之前。
+            // 这里只写 easytier-core/src/config/toml.rs 的 struct Config 里真实存在的键
+            // （该结构体未开 deny_unknown_fields，写错的键会被静默忽略；但类型不符或
+            //   deny_unknown_fields 的子表会直接让整份配置解析失败）。
             val instName = config.instanceName.ifEmpty { config.networkName }
             appendLine("instance_name = \"$instName\"")
             appendLine("instance_id = \"${config.instanceId}\"")
@@ -841,7 +933,14 @@ class RealNetworkRepository @Inject constructor(
                 appendLine("    \"$url\",")
             }
             appendLine("]")
-            appendLine("rpc_portal = \"0.0.0.0:0\"")
+
+            // 对外公布的监听地址（NAT 后的映射地址）
+            val mappedListeners = config.mappedListeners.filter { it.isNotBlank() }
+            if (mappedListeners.isNotEmpty()) {
+                appendLine("mapped_listeners = [")
+                mappedListeners.forEach { appendLine("    \"$it\",") }
+                appendLine("]")
+            }
 
             // 出口节点（上游字段：顶层 exit_nodes，元素为 IP）
             val exitNodes = config.exitNodes.filter { it.isNotBlank() }
@@ -849,6 +948,18 @@ class RealNetworkRepository @Inject constructor(
                 appendLine("exit_nodes = [")
                 exitNodes.forEach { node -> appendLine("    \"$node\",") }
                 appendLine("]")
+            }
+
+            // 手动路由（上游字段：顶层 routes，元素为 IPv4 CIDR）。
+            // 上游没有 enable_manual_routes 这个 TOML 键，它只是管理 API 的门控，
+            // 因此这里只把开关当作 UI 门控使用，不写出该键。
+            if (config.enableManualRoutes) {
+                val routes = config.routes.filter { it.isNotBlank() }
+                if (routes.isNotEmpty()) {
+                    appendLine("routes = [")
+                    routes.forEach { appendLine("    \"$it\",") }
+                    appendLine("]")
+                }
             }
 
             // SOCKS5 代理（上游字段：顶层 socks5_proxy，URL 形式）
@@ -874,20 +985,45 @@ class RealNetworkRepository @Inject constructor(
 
             // Only include flags that differ from defaults
             val flags = mutableListOf<String>()
-            flags.add("no_tun = true")  // Android: VPN service provides TUN fd
+            // Android 的 TUN 设备由 VpnService 建立后经 setTunFd 交给核心，核心不再自行创建设备，
+            // 因此该值恒为 true。上游 TOML 不允许同一张表里出现重复键，故只在此处写一次。
+            flags.add("no_tun = true")
             if (!config.bindDevice) flags.add("bind_device = false")
             if (config.devName.isNotEmpty()) flags.add("dev_name = \"${config.devName}\"")
             config.mtu?.let { flags.add("mtu = $it") }
             if (config.latencyFirst) flags.add("latency_first = true")
             if (config.disableIpv6) flags.add("enable_ipv6 = false")
             if (config.disableP2p) flags.add("disable_p2p = true")
-            if (config.noTun) flags.add("no_tun = true")
+            if (config.p2pOnly) flags.add("p2p_only = true")
+            if (config.lazyP2p) flags.add("lazy_p2p = true")
+            if (config.needP2p) flags.add("need_p2p = true")
             if (config.enableExitNode) flags.add("enable_exit_node = true")
             if (!config.multiThread) flags.add("multi_thread = false")
             if (config.enableKcpProxy) flags.add("enable_kcp_proxy = true")
+            if (config.disableKcpInput) flags.add("disable_kcp_input = true")
+            if (config.enableQuicProxy) flags.add("enable_quic_proxy = true")
+            if (config.disableQuicInput) flags.add("disable_quic_input = true")
             if (config.disableEncryption) flags.add("enable_encryption = false")
             if (config.disableTcpHolePunching) flags.add("disable_tcp_hole_punching = true")
             if (config.disableUdpHolePunching) flags.add("disable_udp_hole_punching = true")
+            if (config.disableSymHolePunching) flags.add("disable_sym_hole_punching = true")
+            if (config.disableUpnp) flags.add("disable_upnp = true")
+            if (config.relayAllPeerRpc) flags.add("relay_all_peer_rpc = true")
+            if (config.enableUdpBroadcastRelay) flags.add("enable_udp_broadcast_relay = true")
+            if (config.proxyForwardBySystem) flags.add("proxy_forward_by_system = true")
+            if (config.useSmoltcp) flags.add("use_smoltcp = true")
+            // 上游类型是单个空格分隔的字符串（默认 "*"），不是数组
+            if (config.enableRelayNetworkWhitelist) {
+                flags.add("relay_network_whitelist = \"${config.relayNetworkWhitelist}\"")
+            }
+            // 上游把 u64 序列化成带引号的字符串
+            config.instanceRecvBpsLimit?.let { flags.add("instance_recv_bps_limit = \"$it\"") }
+            if (config.encryptionAlgorithm != EncryptionAlgorithm.AesGcm) {
+                flags.add("encryption_algorithm = \"${config.encryptionAlgorithm.value}\"")
+            }
+            if (config.dataCompressAlgo != CompressionAlgo.None) {
+                flags.add("data_compress_algo = \"${config.dataCompressAlgo.value}\"")
+            }
             // Magic DNS 在上游 flags 中对应 accept_dns
             if (config.enableMagicDns) flags.add("accept_dns = true")
             if (config.enablePrivateMode) flags.add("private_mode = true")
@@ -897,20 +1033,31 @@ class RealNetworkRepository @Inject constructor(
                 flags.forEach { flag -> appendLine(flag) }
             }
 
+            // VPN Portal：上游 VpnPortalConfig 带 #[serde(deny_unknown_fields)]，
+            // 且没有 client_cidr —— 写旧键会让整份配置解析失败。
+            // 客户端必须用 [[vpn_portal_config.clients]] 的具名模型；
+            // clients 为空时只写 wireguard_listen 也是合法的（enabled 缺省视为启用）。
             if (config.enableVpnPortal) {
                 appendLine()
                 appendLine("[vpn_portal_config]")
-                val cidr = "${config.vpnPortalClientNetworkAddr}/${config.vpnPortalClientNetworkLen}"
-                appendLine("client_cidr = \"$cidr\"")
                 appendLine("wireguard_listen = \"0.0.0.0:${config.vpnPortalListenPort}\"")
+                config.vpnPortalClients
+                    .filter { it.name.isNotBlank() && it.virtualIp.isNotBlank() }
+                    .forEach { client ->
+                        appendLine()
+                        appendLine("[[vpn_portal_config.clients]]")
+                        appendLine("name = \"${client.name}\"")
+                        appendLine("virtual_ip = \"${client.virtualIp}\"")
+                    }
             }
 
-            // Proxy CIDRs
+            // Proxy CIDRs：上游 ProxyNetworkConfig.allow 是 Option<Vec<String>>，
+            // 写 `allow = true` 会因类型不符导致整份配置解析失败；且该字段在核心里
+            // 没有任何读取点，所以这里只写 cidr。
             config.proxyCidrs.filter { it.isNotBlank() }.forEach { cidr ->
                 appendLine()
                 appendLine("[[proxy_network]]")
                 appendLine("cidr = \"$cidr\"")
-                appendLine("allow = true")
             }
 
             // Port forwards
