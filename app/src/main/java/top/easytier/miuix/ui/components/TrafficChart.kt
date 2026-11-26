@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
+import top.easytier.miuix.ui.theme.StatusColors
 
 data class TrafficDataPoint(
     val txBytes: Long,
@@ -22,8 +23,8 @@ fun TrafficChart(
     txHistory: List<Long>,
     rxHistory: List<Long>,
     maxPoints: Int = 60,
-    txColor: Color = Color(0xFF3482FF),
-    rxColor: Color = Color(0xFF4CAF50),
+    txColor: Color = StatusColors.trafficUpload,
+    rxColor: Color = StatusColors.trafficDownload,
     modifier: Modifier = Modifier,
 ) {
     val txData = txHistory.takeLast(maxPoints)

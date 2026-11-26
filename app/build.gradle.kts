@@ -39,8 +39,8 @@ android {
         applicationId = "top.easytier.miuix"
         minSdk = 32
         targetSdk = 37
-        versionCode = 13
-        versionName = "1.3.0"
+        versionCode = 14
+        versionName = "1.4.0"
         buildConfigField("String", "CORE_VERSION", "\"$vendoredCoreVersion\"")
     }
 
@@ -80,6 +80,9 @@ dependencies {
     implementation("top.yukonga.miuix.kmp:miuix-preference:0.9.3")
     implementation("top.yukonga.miuix.kmp:miuix-icons:0.9.3")
     implementation("top.yukonga.miuix.kmp:miuix-blur:0.9.3")
+    // 手搓形状（非 miuix 组件的圆角胶囊/图片裁剪）统一用 squircle，
+    // 与 miuix 卡片的超椭圆圆角保持同一形状语言。
+    implementation("top.yukonga.miuix.kmp:miuix-squircle:0.9.3")
 
     // Compose BOM
     implementation(platform("androidx.compose:compose-bom:2025.05.00"))

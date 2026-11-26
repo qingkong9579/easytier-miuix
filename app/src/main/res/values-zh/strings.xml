@@ -317,4 +317,37 @@
     <string name="err_invalid_port_forward">需要填写绑定地址与目标地址</string>
     <string name="err_invalid_vpn_client">需要填写设备名称与带前缀的虚拟 IP</string>
     <string name="err_invalid_bps_limit">接收限速必须为正数</string>
+
+    <!-- 上游 2.7.0+：UDP FEC -->
+    <string name="config_udp_fec">UDP 前向纠错</string>
+    <string name="config_udp_fec_summary">在 UDP 上做前向纠错。弱网丢包时有用，网络良好时可能降低吞吐</string>
+    <string name="config_udp_fec_kcp">仅对 KCP 启用 FEC</string>
+    <string name="config_udp_fec_kcp_summary">FEC 只作用于 KCP 流量，需先开启 UDP 前向纠错</string>
+    <string name="config_udp_fec_quic">仅对 QUIC 启用 FEC</string>
+    <string name="config_udp_fec_quic_summary">FEC 只作用于 QUIC 流量，需先开启 UDP 前向纠错</string>
+    <string name="config_udp_fec_experimental">实验性</string>
+
+    <!-- 上游 2.7.0+：Magic DNS 静态记录 -->
+    <string name="config_magic_dns_section">Magic DNS</string>
+    <string name="config_magic_dns_summary">在虚拟网络内提供静态 DNS 记录</string>
+    <string name="config_dns_domain">DNS 域名</string>
+    <string name="config_dns_domain_hint">留空则使用默认的 et.net.</string>
+    <string name="config_dns_records">静态记录</string>
+    <string name="config_dns_add_record">添加记录</string>
+    <string name="config_dns_record_name">名称</string>
+    <string name="config_dns_record_type">类型</string>
+    <string name="config_dns_record_value">值</string>
+    <string name="config_dns_record_ttl">TTL（可选）</string>
+    <string name="config_dns_zone_origin">区原点</string>
+    <string name="config_dns_empty">暂无静态记录</string>
+    <string name="config_dns_hint_mx">值格式：优先级 主机名，例如 10 mail</string>
+    <string name="config_dns_hint_srv">值格式：优先级 权重 端口 目标</string>
+    <string name="config_dns_hint_txt">会自动补齐引号</string>
+    <string name="config_dns_hint_default">值格式：地址或目标主机</string>
+    <string name="config_dns_magic_dns_off">这些记录需要先在「高级设置」中启用 Magic DNS 才会生效</string>
+
+    <!-- 新增选项的校验提示 -->
+    <string name="err_dns_record_incomplete">每条 DNS 记录都需要填写名称和值</string>
+    <string name="err_dns_origin_required">存在记录时必须填写区原点</string>
+    <string name="err_fec_mtu_too_small">开启 UDP 前向纠错时 MTU 至少为 %1$d</string>
 </resources>

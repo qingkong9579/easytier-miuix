@@ -38,14 +38,16 @@ fun Modifier.pressScale(
     pressedScale: Float = 0.96f,
 ): Modifier {
     val pressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
+    // 不要在组合期 `by` 解包：120ms 动画期间每帧都会让调用方重组。
+    // 保留 State<Float>，在 graphicsLayer 的 layer 阶段读取。
+    val scale = animateFloatAsState(
         targetValue = if (pressed) pressedScale else 1f,
         animationSpec = tween(durationMillis = 120, easing = EaseOut),
         label = "pressScale",
     )
     return graphicsLayer {
-        scaleX = scale
-        scaleY = scale
+        scaleX = scale.value
+        scaleY = scale.value
     }
 }
 

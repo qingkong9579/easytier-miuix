@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,7 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Lan
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,6 +52,8 @@ import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.rememberPullToRefreshState
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.overScrollVertical
+import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
 @Composable
 fun NetworkListScreen(
@@ -61,7 +64,7 @@ fun NetworkListScreen(
     onCreateNetwork: () -> Unit = {},
     viewModel: NetworkListViewModel = hiltViewModel(),
 ) {
-    val instances by viewModel.instances.collectAsState()
+    val instances by viewModel.instances.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) { viewModel.refreshConfigs() }
 
@@ -72,6 +75,10 @@ fun NetworkListScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
+            // miuix 滚动骨架：滚到边界时给触感反馈，越界用 MIUI 风格回弹，
+            // 而不是 Compose 默认的拉伸光晕。
+            .scrollEndHaptic()
+            .overScrollVertical()
             .padding(horizontal = 16.dp),
     ) {
         Spacer(Modifier.height(12.dp))
@@ -126,8 +133,12 @@ fun NetworkListScreen(
             ) {
                 LazyColumn(
                     state = listState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        // miuix 滚动骨架：滚到边界时给触感反馈，越界用 MIUI 风格回弹。
+                        .scrollEndHaptic()
+                        .overScrollVertical(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(bottom = contentBottomPadding),
                 ) {
                     items(instances, key = { it.instanceId }) { instance ->
                         NetworkInstanceCard(
@@ -137,6 +148,14 @@ fun NetworkListScreen(
                             onRun = { viewModel.getConfigById(instance.instanceId)?.let { viewModel.runNetwork(it) } },
                             onStop = { viewModel.stopNetwork(instance.instanceId) },
                             onDelete = { pendingDelete = instance },
+                        )
+                    }
+                    // 末尾统一留白并避开导航栏；contentBottomPadding 是悬浮底栏的让位量。
+                    item {
+                        Spacer(
+                            Modifier
+                                .height(24.dp + contentBottomPadding)
+                                .navigationBarsPadding()
                         )
                     }
                 }

@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -33,7 +34,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Lan
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -65,6 +66,7 @@ import top.easytier.miuix.ui.components.FilterChip
 import top.easytier.miuix.ui.components.PressableLabel
 import top.easytier.miuix.ui.components.TrafficChart
 import top.easytier.miuix.ui.components.pressScale
+import top.easytier.miuix.ui.theme.StatusColors
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
@@ -73,10 +75,10 @@ import top.yukonga.miuix.kmp.basic.TabRow
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import top.yukonga.miuix.kmp.squircle.squircleBackground
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-
-private const val TX_COLOR = 0xFF3482FF
-private const val RX_COLOR = 0xFF4CAF50
+import top.yukonga.miuix.kmp.utils.overScrollVertical
+import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
 @Composable
 fun StatusScreen(
@@ -86,11 +88,11 @@ fun StatusScreen(
     onStartNetwork: () -> Unit = {},
     viewModel: StatusViewModel = hiltViewModel(),
 ) {
-    val instance by viewModel.currentInstance.collectAsState()
-    val txRate by viewModel.txRate.collectAsState()
-    val rxRate by viewModel.rxRate.collectAsState()
-    val txHistory by viewModel.txHistory.collectAsState()
-    val rxHistory by viewModel.rxHistory.collectAsState()
+    val instance by viewModel.currentInstance.collectAsStateWithLifecycle()
+    val txRate by viewModel.txRate.collectAsStateWithLifecycle()
+    val rxRate by viewModel.rxRate.collectAsStateWithLifecycle()
+    val txHistory by viewModel.txHistory.collectAsStateWithLifecycle()
+    val rxHistory by viewModel.rxHistory.collectAsStateWithLifecycle()
 
     // 事件 / 对端分区切换；事件过滤状态提升到页面级，切 Tab 不丢失
     var selectedSection by rememberSaveable { mutableIntStateOf(0) }
@@ -140,6 +142,10 @@ fun StatusScreen(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
+            // miuix 滚动骨架：滚到边界时给触感反馈，越界用 MIUI 风格回弹，
+            // 而不是 Compose 默认的拉伸光晕。
+            .scrollEndHaptic()
+            .overScrollVertical()
             .padding(horizontal = 16.dp),
         state = listState,
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -180,7 +186,7 @@ fun StatusScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        LegendDot(color = Color(TX_COLOR))
+                        LegendDot(color = StatusColors.trafficUpload)
                         Text(
                             stringResource(R.string.peer_tx),
                             style = MiuixTheme.textStyles.body2,
@@ -188,7 +194,7 @@ fun StatusScreen(
                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         )
                         Spacer(Modifier.width(12.dp))
-                        LegendDot(color = Color(RX_COLOR))
+                        LegendDot(color = StatusColors.trafficDownload)
                         Text(
                             stringResource(R.string.peer_rx),
                             style = MiuixTheme.textStyles.body2,
@@ -216,6 +222,14 @@ fun StatusScreen(
         // 事件 / 对端：TabRow 左右切换（miuix TabRow；对端在左、事件在右）
         val parsedEvents = detail?.parsedEvents ?: emptyList()
         val peerPairs = viewModel.getPeerRoutePairs()
+        // timestamp 为 0 代表时间解析失败：这类事件不能被「清空」永久吞掉，
+        // 否则列表会进入无法回退的空状态（连清空按钮都会一起消失）。
+        val visibleEvents = parsedEvents.asSequence()
+            .filter { it.timestamp == 0L || it.timestamp >= clearedAt }
+            .filter { !warnOnly || detectEventSeverity(it) != EventLevel.INFO }
+            .toList()
+        val visibleEventsCount = visibleEvents.size
+        val displayEvents = visibleEvents.take(if (showAllEvents) 20 else 5)
         item {
             TabRow(
                 tabs = listOf(
@@ -229,36 +243,84 @@ fun StatusScreen(
                 height = 42.dp,
             )
         }
-        item {
-            Crossfade(
-                targetState = selectedSection,
-                animationSpec = tween(durationMillis = 150),
-                label = "statusSection",
-            ) { section ->
-                if (section == 0) {
-                    PeersContent(
-                        peerPairs = peerPairs,
-                        onLongPressCopy = { copyToClipboard(it) },
+        // 内容按行摊成独立 lazy item。
+        // 之前这里是一个 item { Crossfade { 整段列表 } }：任意一张对端卡片展开/收起，
+        // 或事件过滤条件变化，都会让整段（可达数百节点）在同一个布局 scope 里重组，
+        // 与规范第 16/18 条记录的 ProxyScreen 卡顿同型。
+        if (selectedSection == 0) {
+            item {
+                Text(
+                    stringResource(
+                        R.string.status_peers_summary,
+                        peerPairs.size,
+                        peerPairs.count { it.route.isRelay },
+                    ),
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                )
+            }
+            if (peerPairs.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(32.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            stringResource(R.string.status_no_peers),
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        )
+                    }
+                }
+            } else {
+                items(
+                    items = peerPairs,
+                    key = { pair -> "peer-${pair.route.peerId}" },
+                ) { pair ->
+                    PeerCard(pair, onLongPressCopy = { copyToClipboard(it) })
+                }
+            }
+        } else {
+            item {
+                EventsToolbar(
+                    visibleCount = visibleEventsCount,
+                    showAllEvents = showAllEvents,
+                    warnOnly = warnOnly,
+                    onShowAllEventsChange = { showAllEvents = it },
+                    onWarnOnlyChange = { warnOnly = it },
+                    onClear = {
+                        clearedAt = System.currentTimeMillis()
+                        showAllEvents = false
+                    },
+                )
+            }
+            if (displayEvents.isEmpty()) {
+                item {
+                    Text(
+                        text = stringResource(R.string.events_cleared_hint),
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        modifier = Modifier.padding(horizontal = 16.dp),
                     )
-                } else {
-                    EventsCard(
-                        events = parsedEvents,
-                        showAllEvents = showAllEvents,
-                        warnOnly = warnOnly,
-                        clearedAt = clearedAt,
-                        onShowAllEventsChange = { showAllEvents = it },
-                        onWarnOnlyChange = { warnOnly = it },
-                        onClear = {
-                            clearedAt = System.currentTimeMillis()
-                            showAllEvents = false
-                        },
-                        onCopy = { copyToClipboard(it) },
-                    )
+                }
+            } else {
+                // 行距内化到每行的可点击区内（ui-skills: interactive-hit-areas，消除触控死区）
+                items(
+                    items = displayEvents,
+                    key = { event -> "event-${event.timestamp}-${event.type}" },
+                ) { event ->
+                    EventLogItem(event, onCopy = { copyToClipboard(it) })
                 }
             }
         }
 
-        item { Spacer(Modifier.height(12.dp)) }
+        // 末尾统一留白并避开导航栏；contentBottomPadding 是悬浮底栏的让位量。
+        item {
+            Spacer(
+                Modifier
+                    .height(24.dp + contentBottomPadding)
+                    .navigationBarsPadding()
+            )
+        }
     }
 }
 
@@ -354,27 +416,24 @@ private fun Dot(color: Color, size: Int = 8) {
     )
 }
 
+/**
+ * 事件区的工具栏：级别过滤 + 展开条数 + 清空。
+ *
+ * 从原来的 EventsCard 里拆出来——整卡（工具栏 + 最多 20 行事件）塞进单个
+ * lazy item 时，任意过滤条件变化都会让全部事件行在同一个布局 scope 里重组。
+ * 现在工具栏是独立 item，事件行各自是顶层 item。
+ */
 @Composable
-private fun EventsCard(
-    events: List<top.easytier.miuix.data.model.EventInfo>,
+private fun EventsToolbar(
+    visibleCount: Int,
     showAllEvents: Boolean,
     warnOnly: Boolean,
-    clearedAt: Long,
     onShowAllEventsChange: (Boolean) -> Unit,
     onWarnOnlyChange: (Boolean) -> Unit,
     onClear: () -> Unit,
-    onCopy: (String) -> Unit,
 ) {
-    // timestamp 为 0 代表时间解析失败：这类事件不能被「清空」永久吞掉，
-    // 否则列表会进入无法回退的空状态（连清空按钮都会一起消失）。
-    val visibleEvents = events.asSequence()
-        .filter { it.timestamp == 0L || it.timestamp >= clearedAt }
-        .filter { !warnOnly || detectEventSeverity(it) != EventLevel.INFO }
-        .toList()
-    val displayEvents = visibleEvents.take(if (showAllEvents) 20 else 5)
-
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
             // 级别过滤 + 展开条数 + 清空（统一 44dp 触控规格）
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -392,63 +451,22 @@ private fun EventsCard(
                     onClick = { onWarnOnlyChange(true) },
                 )
                 Spacer(Modifier.weight(1f))
-                if (visibleEvents.size > 5) {
+                if (visibleCount > 5) {
                     PressableLabel(
-                        label = if (showAllEvents) stringResource(R.string.status_show_count, visibleEvents.size)
-                        else stringResource(R.string.status_show_count, 20),
+                        label = if (showAllEvents) {
+                            stringResource(R.string.status_show_count, visibleCount)
+                        } else {
+                            stringResource(R.string.status_show_count, 20)
+                        },
                         onClick = { onShowAllEventsChange(!showAllEvents) },
                     )
                 }
-                if (visibleEvents.isNotEmpty()) {
+                if (visibleCount > 0) {
                     PressableLabel(
                         label = stringResource(R.string.events_clear),
                         onClick = onClear,
                     )
                 }
-            }
-            Spacer(Modifier.height(8.dp))
-            if (displayEvents.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.events_cleared_hint),
-                    style = MiuixTheme.textStyles.body2,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                )
-            } else {
-                // 行距内化到每行的可点击区内（ui-skills: interactive-hit-areas，消除触控死区）
-                displayEvents.forEach { event ->
-                    EventLogItem(event, onCopy)
-                }
-            }
-        }
-    }
-}
-
-/** 对端分区内容：摘要行 + 空态/对端卡片 */
-@Composable
-private fun PeersContent(
-    peerPairs: List<PeerRoutePair>,
-    onLongPressCopy: (String) -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            stringResource(
-                R.string.status_peers_summary,
-                peerPairs.size,
-                peerPairs.count { it.route.isRelay },
-            ),
-            style = MiuixTheme.textStyles.body2,
-            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-        )
-        if (peerPairs.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxWidth().padding(32.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(stringResource(R.string.status_no_peers), color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
-            }
-        } else {
-            peerPairs.forEach { pair ->
-                PeerCard(pair, onLongPressCopy = onLongPressCopy)
             }
         }
     }
@@ -457,11 +475,13 @@ private fun PeersContent(
 /** Small capsule badge showing whether a peer is reached directly (P2P) or via relay. */
 @Composable
 private fun RouteModeBadge(relay: Boolean) {
-    val color = if (relay) Color(0xFFFFA000) else Color(0xFF4CAF50)
+    val color = if (relay) StatusColors.warning else StatusColors.healthy
+    // 非点击的纯色胶囊：squircleBackground 不产生 offscreen layer，
+    // 且圆角形状与相邻 miuix 卡片一致（RoundedCornerShape + clip 是二次曲线，
+    // 在卡片旁边肉眼可见形状不同）。
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(color.copy(alpha = 0.15f))
+            .squircleBackground(color.copy(alpha = 0.15f), cornerRadius = 8.dp)
             .padding(horizontal = 8.dp, vertical = 3.dp),
     ) {
         Text(
@@ -473,20 +493,12 @@ private fun RouteModeBadge(relay: Boolean) {
 }
 
 @Composable
-private fun latencyColor(latencyUs: Long): Color = when {
-    latencyUs <= 0 -> MiuixTheme.colorScheme.onSurfaceVariantSummary
-    latencyUs < 10_000 -> Color(0xFF4CAF50)
-    latencyUs < 50_000 -> Color(0xFFFFA000)
-    else -> MiuixTheme.colorScheme.error
-}
+private fun latencyColor(latencyUs: Long): Color =
+    if (latencyUs <= 0) StatusColors.neutral else StatusColors.latency(latencyUs)
 
 @Composable
-private fun lossColor(rate: Float): Color = when {
-    rate <= 0f -> MiuixTheme.colorScheme.onSurfaceVariantSummary
-    rate < 0.01f -> Color(0xFF4CAF50)
-    rate < 0.05f -> Color(0xFFFFA000)
-    else -> MiuixTheme.colorScheme.error
-}
+private fun lossColor(rate: Float): Color =
+    if (rate <= 0f) StatusColors.neutral else StatusColors.loss(rate)
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -728,8 +740,8 @@ private val eventPreferredSummaryFields =
 private fun EventLogItem(event: top.easytier.miuix.data.model.EventInfo, onCopy: (String) -> Unit) {
     val severity = detectEventSeverity(event)
     val severityColor = when (severity) {
-        EventLevel.ERROR -> MiuixTheme.colorScheme.error
-        EventLevel.WARN -> Color(0xFFFFA000)
+        EventLevel.ERROR -> StatusColors.danger
+        EventLevel.WARN -> StatusColors.warning
         EventLevel.INFO -> MiuixTheme.colorScheme.primary
     }
     // 事件类型与时间已由解析层从事件体里取出（事件 JSON 只有 time 与 event 两个键），

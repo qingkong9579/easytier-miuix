@@ -5,12 +5,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,6 +28,8 @@ import top.easytier.miuix.ui.dialogs.LanguageSwitcherDialog
 import top.easytier.miuix.ui.theme.AppSettings
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.preference.ArrowPreference
+import top.yukonga.miuix.kmp.utils.overScrollVertical
+import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
 @Composable
 fun SettingsScreen(
@@ -41,12 +44,16 @@ fun SettingsScreen(
     var showConfigServer by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
 
-    val configServerUrl by viewModel.configServerUrl.collectAsState()
-    val configServerConnected by viewModel.configServerConnected.collectAsState()
+    val configServerUrl by viewModel.configServerUrl.collectAsStateWithLifecycle()
+    val configServerConnected by viewModel.configServerConnected.collectAsStateWithLifecycle()
 
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
+            // miuix 滚动骨架：滚到边界时给触感反馈，越界用 MIUI 风格回弹，
+            // 而不是 Compose 默认的拉伸光晕。
+            .scrollEndHaptic()
+            .overScrollVertical()
             .padding(horizontal = 16.dp),
         state = listState,
         contentPadding = PaddingValues(bottom = contentBottomPadding),
@@ -101,7 +108,16 @@ fun SettingsScreen(
             }
         }
 
-        item { Spacer(Modifier.height(16.dp)) }
+        item {
+            Spacer(Modifier.height(12.dp))
+        }
+        item {
+            Spacer(
+                Modifier
+                    .height(24.dp + contentBottomPadding)
+                    .navigationBarsPadding()
+            )
+        }
     }
 
     if (showConfigServer) {

@@ -14,7 +14,7 @@ EasyTier Android 客户端，基于 Kotlin Jetpack Compose + miuix 组件库构�
 
 ## 简介
 
-EasyTier miuix 是 [EasyTier](https://github.com/EasyTier/EasyTier) 的原生 Android 客户端，内置 EasyTier 2.7.0 核心（Rust/JNI），提供网络配置管理、运行状态监控与 VPN 服务。UI 采用 miuix 组件库，支持主题定制、液态玻璃效果和中英文切换。
+EasyTier miuix 是 [EasyTier](https://github.com/EasyTier/EasyTier) 的原生 Android 客户端，内置 EasyTier 2.7.1 核心（Rust/JNI），提供网络配置管理、运行状态监控与 VPN 服务。UI 采用 miuix 组件库，支持主题定制、液态玻璃效果和中英文切换。
 
 ## 功能
 
@@ -23,6 +23,9 @@ EasyTier miuix 是 [EasyTier](https://github.com/EasyTier/EasyTier) 的原生 An
 - **运行监控** — 实时流量图表与速率、对端连接（P2P/中继标识、延迟、丢包）、事件日志（人性化展示，支持级别过滤）
 - **VPN 服务** — 基于 Android VpnService 的前台服务，集成 EasyTier 核心的 TUN 路由代理
 - **配置服务器** — 连接 easytier-web 配置服务器，远程下发的网络由核心自动应用
+- **Magic DNS** — 支持静态 DNS 区与记录（A/AAAA/CNAME/MX/TXT/SRV/HTTPS 等 20 种 RR），在虚拟网络内直接解析
+- **UDP 前向纠错** — 上游 2.7.1 的 FEC 滑动窗口重传，弱网丢包环境下改善连通性（实验性）
+- **压缩算法** — None / Zstd / LZO，移动端可用 LZO 换取更低的 CPU 开销
 - **主题定制** — Monet 动态取色、深色/浅色模式、主题色自定义
 - **液态玻璃** — 悬浮胶囊底栏，支持 vibrancy + 高斯模糊 + 折射 lens 效果
 - **语言切换** — 支持中文/英文/跟随系统
@@ -59,7 +62,7 @@ EasyTier miuix 是 [EasyTier](https://github.com/EasyTier/EasyTier) 的原生 An
 | 架构 | MVVM + Repository |
 | DI | Hilt 2.59.2 |
 | 构建 | Gradle + AGP 8.13.2 |
-| 后端 | EasyTier 2.7.0 Rust 核心 (JNI) |
+| 后端 | EasyTier 2.7.1 Rust 核心 (JNI) |
 
 ## 构建
 

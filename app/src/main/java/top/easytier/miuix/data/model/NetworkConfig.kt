@@ -46,16 +46,77 @@ enum class EncryptionAlgorithm(val value: String) {
     }
 }
 
-/** `[flags] data_compress_algo` 的稳定取值，对齐上游 `CompressionAlgoPb`（枚举名，非序号）。 */
+/**
+ * `[flags] data_compress_algo` 的稳定取值，对齐上游 `CompressionAlgoPb`（枚举名，非序号）。
+ *
+ * `Lzo` 由上游 #2204 引入（2.7.0 之后）：压缩率低于 `Zstd` 但 CPU 开销小得多，
+ * 适合移动端省电场景。
+ *
+ * 注意 `PeerManager` 构造时会走 `ensure_available()`，若当前 .so 未编译 `lzo`
+ * feature，写入 `"Lzo"` 会让实例**启动直接失败**（不是静默降级）。本项目的
+ * `easytier-android-jni` 依赖 `easytier` 的默认 features（含 `lzo`），所以可用。
+ */
 enum class CompressionAlgo(val value: String) {
     None("None"),
-    Zstd("Zstd");
+    Zstd("Zstd"),
+    Lzo("Lzo");
 
     companion object {
         fun fromValue(value: String): CompressionAlgo =
             entries.firstOrNull { it.value == value } ?: None
     }
 }
+
+/** `[dns.zone[].records[]]` 支持的 RR 类型，对齐上游 `DnsRecordType`。 */
+enum class DnsRecordType(val value: String) {
+    A("A"),
+    Aaaa("AAAA"),
+    Cname("CNAME"),
+    Ns("NS"),
+    Soa("SOA"),
+    Ptr("PTR"),
+    Hinfo("HINFO"),
+    Mx("MX"),
+    Txt("TXT"),
+    Srv("SRV"),
+    Naptr("NAPTR"),
+    Cert("CERT"),
+    Sshfp("SSHFP"),
+    Tlsa("TLSA"),
+    Csync("CSYNC"),
+    Svcb("SVCB"),
+    Https("HTTPS"),
+    Openpgpkey("OPENPGPKEY"),
+    Caa("CAA"),
+    Aname("ANAME");
+
+    companion object {
+        fun fromValue(value: String): DnsRecordType =
+            entries.firstOrNull { it.value.equals(value, ignoreCase = true) } ?: A
+    }
+}
+
+/**
+ * 上游 Magic DNS 静态记录（2.7.0 之后新增，`core_config.proto` 的 `DnsRecordRaw`）。
+ *
+ * [value] 是 RDATA 的 presentation 格式，**不含 owner/TTL/class/type 前缀**：
+ * - `Mx` 写 `"10 mail"`
+ * - `Srv` 写 `"10 5 5060 sip"`
+ * - `Txt` 需要自带引号（渲染层会自动补齐）
+ */
+data class DnsRecord(
+    val name: String = "",
+    val type: DnsRecordType = DnsRecordType.A,
+    val ttl: Int? = null,
+    val value: String = "",
+)
+
+/** 上游 `[[dns.zone]]`（`DnsZoneConfigRaw`）。 */
+data class DnsZone(
+    val origin: String = "",
+    val ttl: Int? = null,
+    val records: List<DnsRecord> = emptyList(),
+)
 
 data class NetworkConfig(
     val instanceId: String = UUID.randomUUID().toString(),
@@ -119,6 +180,31 @@ data class NetworkConfig(
     val portForwards: List<PortForwardConfig> = emptyList(),
     val encryptionAlgorithm: EncryptionAlgorithm = EncryptionAlgorithm.AesGcm,
     val dataCompressAlgo: CompressionAlgo = CompressionAlgo.None,
+
+    // ---- 上游 2.7.0 之后新增 ----
+
+    /**
+     * `[flags] enable_udp_fec`：UDP 对端的滑动窗口前向纠错（上游 #2684）。
+     *
+     * 实验性：官方设计文档记录了**低丢包场景下吞吐回退**，弱网/高丢包环境才有收益。
+     * 开启后核心会从 `mtu` 里扣掉 16 字节（`FEC_MAX_OVERHEAD`，开加密再扣 AEAD 尾），
+     * MTU 过小时实例启动会直接报错。
+     */
+    val enableUdpFec: Boolean = false,
+    /** `[flags] enable_udp_fec_kcp`：FEC 只对 KCP 流量生效。单独打开无效，需同时开 [enableUdpFec]。 */
+    val enableUdpFecKcp: Boolean = false,
+    /** `[flags] enable_udp_fec_quic`：FEC 只对 QUIC 流量生效。单独打开无效，需同时开 [enableUdpFec]。 */
+    val enableUdpFecQuic: Boolean = false,
+
+    /**
+     * `[dns] domain`：Magic DNS 用作节点名后缀的域，留空则沿用核心默认 `et.net.`。
+     *
+     * 这是 `flags.tld_dns_zone` 的替代品（后者已 deprecated，但核心仍保留 fallback，
+     * 优先级为 `dns.domain` > `flags.tld_dns_zone` > `et.net.`）。
+     */
+    val dnsDomain: String = "",
+    /** `[[dns.zone]]`：静态 DNS 区与记录。写错会让整份 TOML 解析失败，保存前必须校验。 */
+    val dnsZones: List<DnsZone> = emptyList(),
 )
 
 fun normalizeNetworkConfig(config: NetworkConfig): NetworkConfig {
@@ -254,6 +340,67 @@ fun NetworkConfig.toJSON(): JSONObject = JSONObject().apply {
     put("enableSocks5", enableSocks5)
     put("socks5Port", socks5Port)
     putPortForwards("portForwards", portForwards)
+
+    put("enableUdpFec", enableUdpFec)
+    put("enableUdpFecKcp", enableUdpFecKcp)
+    put("enableUdpFecQuic", enableUdpFecQuic)
+    put("dnsDomain", dnsDomain)
+    putDnsZones("dnsZones", dnsZones)
+}
+
+private fun JSONObject.putDnsZones(key: String, zones: List<DnsZone>) {
+    put(
+        key,
+        JSONArray().apply {
+            zones.forEach { zone ->
+                put(
+                    JSONObject()
+                        .put("origin", zone.origin)
+                        .put("ttl", zone.ttl ?: JSONObject.NULL)
+                        .put(
+                            "records",
+                            JSONArray().apply {
+                                zone.records.forEach { record ->
+                                    put(
+                                        JSONObject()
+                                            .put("name", record.name)
+                                            .put("type", record.type.value)
+                                            .put("ttl", record.ttl ?: JSONObject.NULL)
+                                            .put("value", record.value),
+                                    )
+                                }
+                            },
+                        ),
+                )
+            }
+        },
+    )
+}
+
+private fun JSONObject.dnsZones(key: String): List<DnsZone> {
+    val arr = optJSONArray(key) ?: return emptyList()
+    return (0 until arr.length()).mapNotNull { i ->
+        val obj = arr.optJSONObject(i) ?: return@mapNotNull null
+        val recordArr = obj.optJSONArray("records")
+        val records = if (recordArr == null) {
+            emptyList()
+        } else {
+            (0 until recordArr.length()).mapNotNull { j ->
+                val rec = recordArr.optJSONObject(j) ?: return@mapNotNull null
+                DnsRecord(
+                    name = rec.optString("name", ""),
+                    type = DnsRecordType.fromValue(rec.optString("type", "A")),
+                    ttl = if (rec.isNull("ttl")) null else rec.optInt("ttl"),
+                    value = rec.optString("value", ""),
+                )
+            }
+        }
+        DnsZone(
+            origin = obj.optString("origin", ""),
+            ttl = if (obj.isNull("ttl")) null else obj.optInt("ttl"),
+            records = records,
+        )
+    }
 }
 
 fun JSONObject.toNetworkConfig(): NetworkConfig = NetworkConfig(
@@ -315,4 +462,10 @@ fun JSONObject.toNetworkConfig(): NetworkConfig = NetworkConfig(
     enableSocks5 = optBoolean("enableSocks5", false),
     socks5Port = optInt("socks5Port", 1080),
     portForwards = portForwards("portForwards"),
+
+    enableUdpFec = optBoolean("enableUdpFec", false),
+    enableUdpFecKcp = optBoolean("enableUdpFecKcp", false),
+    enableUdpFecQuic = optBoolean("enableUdpFecQuic", false),
+    dnsDomain = optString("dnsDomain", ""),
+    dnsZones = dnsZones("dnsZones"),
 )

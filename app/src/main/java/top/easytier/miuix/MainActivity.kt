@@ -13,7 +13,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -68,7 +68,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         setContent {
-            val instances by repository.getAllNetworkInstances().collectAsState(initial = emptyList())
+            val instances by repository.getAllNetworkInstances().collectAsStateWithLifecycle(initialValue = emptyList())
             MainContent(
                 prefs = prefs,
                 onLanguageChanged = this::onLanguageChanged,
@@ -204,7 +204,7 @@ fun MainContent(
     }
 
     // Watch for VPN permission requests from repository
-    val vpnIntent by vpnPermissionFlow.collectAsState()
+    val vpnIntent by vpnPermissionFlow.collectAsStateWithLifecycle()
     LaunchedEffect(vpnIntent) {
         vpnIntent?.let { intent ->
             vpnLauncher?.launch(intent)

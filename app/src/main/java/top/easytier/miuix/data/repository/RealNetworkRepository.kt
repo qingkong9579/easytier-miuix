@@ -41,6 +41,9 @@ import top.easytier.miuix.data.model.PeerRoutePair
 import top.easytier.miuix.data.model.Route
 import top.easytier.miuix.data.model.StunInfo
 import top.easytier.miuix.data.model.TunnelInfo
+import top.easytier.miuix.data.model.DnsRecord
+import top.easytier.miuix.data.model.DnsRecordType
+import top.easytier.miuix.data.model.DnsZone
 import top.easytier.miuix.data.model.Url
 import com.easytier.jni.EasyTierJNI
 import top.easytier.miuix.jni.EasyTierTileService
@@ -1027,11 +1030,26 @@ class RealNetworkRepository @Inject constructor(
             // Magic DNS 在上游 flags 中对应 accept_dns
             if (config.enableMagicDns) flags.add("accept_dns = true")
             if (config.enablePrivateMode) flags.add("private_mode = true")
+
+            // ---- 上游 2.7.0 之后新增的 FEC flag ----
+            // 子项（_kcp/_quic）单独开启无效，因此只在主开关打开时才写出，
+            // 避免生成一份「看起来开了、实际没生效」的配置。
+            if (config.enableUdpFec) {
+                flags.add("enable_udp_fec = true")
+                if (config.enableUdpFecKcp) flags.add("enable_udp_fec_kcp = true")
+                if (config.enableUdpFecQuic) flags.add("enable_udp_fec_quic = true")
+            }
             if (flags.isNotEmpty()) {
                 appendLine()
                 appendLine("[flags]")
                 flags.forEach { flag -> appendLine(flag) }
             }
+
+            // ---- Magic DNS 静态区（[dns] / [[dns.zone]] / records）----
+            // 注意：上游在 TOML 解析阶段就会调用 compile_dns() 完整校验，
+            // 记录写错会让**整份配置解析失败**（不是忽略该段）。这里先做一遍
+            // 前置过滤，把明显不完整的记录挡在生成之前。
+            appendDnsSection(config)
 
             // VPN Portal：上游 VpnPortalConfig 带 #[serde(deny_unknown_fields)]，
             // 且没有 client_cidr —— 写旧键会让整份配置解析失败。
@@ -1070,4 +1088,82 @@ class RealNetworkRepository @Inject constructor(
             }
         }
     }
+
+    /**
+     * 追加 `[dns]` 段（上游 2.7.0 之后新增的 Magic DNS 静态记录）。
+     *
+     * 上游 `toml.rs` 在解析阶段就调用 `compile_dns()` 做完整校验，任何一条记录
+     * 不合规都会让**整份配置解析失败**，所以这里先过滤掉不完整的记录：
+     * 没有 origin 的区、没有 name 或 value 的记录都不写出。真正的语义校验
+     * （RDATA 语法、CNAME 冲突、RRset TTL 一致性）仍在核心侧，UI 只能尽力拦截。
+     *
+     * TXT 的 RDATA 必须是带引号的字符串，用户手输常忘记，这里自动补齐。
+     */
+    private fun StringBuilder.appendDnsSection(config: NetworkConfig) {
+        val domain = config.dnsDomain.trim()
+        val zones = config.dnsZones
+            .mapNotNull { zone ->
+                val origin = zone.origin.trim()
+                if (origin.isEmpty()) return@mapNotNull null
+                val records = zone.records.mapNotNull { record ->
+                    val name = record.name.trim()
+                    if (name.isEmpty() || record.value.isBlank()) return@mapNotNull null
+                    record.copy(name = name, value = record.value.trim())
+                }
+                if (records.isEmpty()) return@mapNotNull null
+                zone.copy(origin = origin, records = records)
+            }
+
+        // domain 与 zone 都没有内容时完全不写，让核心走默认的 et.net.
+        if (domain.isEmpty() && zones.isEmpty()) return
+
+        appendLine()
+        // `[dns]` 表头只能出现一次——TOML 不允许重复定义同一张表。
+        // 之前把它写在 zones.forEach 里，多 zone 时会生成重复表头直接解析失败。
+        appendLine("[dns]")
+        if (domain.isNotEmpty()) {
+            appendLine("domain = \"${escapeToml(domain)}\"")
+        }
+
+        zones.forEach { zone ->
+            appendLine()
+            appendLine("[[dns.zone]]")
+            appendLine("origin = \"${escapeToml(zone.origin)}\"")
+            zone.ttl?.let { appendLine("ttl = $it") }
+            appendLine("records = [")
+            zone.records.forEach { record ->
+                appendLine("    ${renderDnsRecord(record)},")
+            }
+            appendLine("]")
+        }
+    }
+
+    /**
+     * 渲染单条 DNS 记录为 TOML 内联表。
+     *
+     * `value` 是 TOML 基本字符串，内部的反斜杠和双引号必须转义；
+     * TXT 的 RDATA 本身还需要一层引号（DNS 的 presentation 格式要求），
+     * 所以最终会出现 `value = "\"文本\""` 这种双重转义。
+     */
+    private fun renderDnsRecord(record: DnsRecord): String {
+        val parts = mutableListOf(
+            "name = \"${escapeToml(record.name)}\"",
+            "type = \"${record.type.value}\"",
+        )
+        record.ttl?.let { parts.add("ttl = $it") }
+        val rdata = when (record.type) {
+            // 用户已自带外层引号时不再重复添加，但仍要转义进 TOML 字符串。
+            DnsRecordType.Txt -> {
+                val v = record.value.trim()
+                if (v.startsWith("\"") && v.endsWith("\"") && v.length >= 2) v else "\"$v\""
+            }
+            else -> record.value.trim()
+        }
+        parts.add("value = \"${escapeToml(rdata)}\"")
+        return "{ " + parts.joinToString(", ") + " }"
+    }
+
+    /** 转义 TOML 基本字符串里的反斜杠与双引号。 */
+    private fun escapeToml(value: String): String =
+        value.replace("\\", "\\\\").replace("\"", "\\\"")
 }

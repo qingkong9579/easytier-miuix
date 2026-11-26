@@ -324,4 +324,37 @@
     <!-- Quick Settings Tile -->
     <string name="tile_label">EasyTier VPN</string>
     <string name="tile_no_config">No network configured</string>
+
+    <!-- Upstream 2.7.0+ : UDP FEC -->
+    <string name="config_udp_fec">UDP FEC</string>
+    <string name="config_udp_fec_summary">Forward error correction over UDP. Helps on lossy links, may lower throughput on healthy ones</string>
+    <string name="config_udp_fec_kcp">FEC for KCP</string>
+    <string name="config_udp_fec_kcp_summary">Apply FEC only to KCP traffic. Requires UDP FEC</string>
+    <string name="config_udp_fec_quic">FEC for QUIC</string>
+    <string name="config_udp_fec_quic_summary">Apply FEC only to QUIC traffic. Requires UDP FEC</string>
+    <string name="config_udp_fec_experimental">Experimental</string>
+
+    <!-- Upstream 2.7.0+ : Magic DNS static records -->
+    <string name="config_magic_dns_section">Magic DNS</string>
+    <string name="config_magic_dns_summary">Serve static DNS records over the overlay</string>
+    <string name="config_dns_domain">DNS domain</string>
+    <string name="config_dns_domain_hint">Leave empty to use the default et.net.</string>
+    <string name="config_dns_records">Static records</string>
+    <string name="config_dns_add_record">Add record</string>
+    <string name="config_dns_record_name">Name</string>
+    <string name="config_dns_record_type">Type</string>
+    <string name="config_dns_record_value">Value</string>
+    <string name="config_dns_record_ttl">TTL (optional)</string>
+    <string name="config_dns_zone_origin">Zone origin</string>
+    <string name="config_dns_empty">No static records</string>
+    <string name="config_dns_hint_mx">Value format: priority host, e.g. 10 mail</string>
+    <string name="config_dns_hint_srv">Value format: priority weight port target</string>
+    <string name="config_dns_hint_txt">Quotes are added automatically</string>
+    <string name="config_dns_hint_default">Value format: address or target</string>
+    <string name="config_dns_magic_dns_off">These records only take effect once Magic DNS is enabled in Advanced settings</string>
+
+    <!-- Validation for the new options -->
+    <string name="err_dns_record_incomplete">Every DNS record needs a name and a value</string>
+    <string name="err_dns_origin_required">Zone origin is required when records exist</string>
+    <string name="err_fec_mtu_too_small">MTU must be at least %1$d when UDP FEC is enabled</string>
 </resources>

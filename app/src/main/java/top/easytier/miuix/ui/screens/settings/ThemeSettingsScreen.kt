@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
@@ -24,6 +25,8 @@ import top.yukonga.miuix.kmp.basic.TabRow
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
+import top.yukonga.miuix.kmp.utils.overScrollVertical
+import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
 @Composable
 fun ThemeSettingsScreen(
@@ -69,6 +72,10 @@ fun ThemeSettingsScreen(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
+            // miuix 滚动骨架：滚到边界时给触感反馈，越界用 MIUI 风格回弹，
+            // 而不是 Compose 默认的拉伸光晕。
+            .scrollEndHaptic()
+            .overScrollVertical()
             .padding(horizontal = 16.dp),
     ) {
         item { Spacer(Modifier.height(12.dp)) }
@@ -167,6 +174,12 @@ fun ThemeSettingsScreen(
             }
         }
 
-        item { Spacer(Modifier.height(16.dp)) }
+        item {
+            Spacer(
+                Modifier
+                    .height(24.dp)
+                    .navigationBarsPadding()
+            )
+        }
     }
 }
